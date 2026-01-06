@@ -1,6 +1,8 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/layout/Layout'
 import ProtectedRoute from './components/auth/ProtectedRoute'
+import { useAuthStore } from './store/useAuthStore'
 import Login from './pages/Login/Login'
 import Dashboard from './pages/Dashboard/Dashboard'
 import CompanyDetail from './pages/Company/CompanyDetail'
@@ -12,6 +14,13 @@ import Alerts from './pages/Alerts/Alerts'
 import Settings from './pages/Settings/Settings'
 
 function App() {
+  const { checkAuth } = useAuthStore()
+
+  // 앱 시작 시 인증 상태 확인
+  useEffect(() => {
+    checkAuth()
+  }, [checkAuth])
+
   return (
     <BrowserRouter
       future={{

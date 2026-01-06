@@ -36,7 +36,7 @@ app.add_middleware(
 # 이제 company.py에 있는 모든 API가 자동으로 앱에 등록됩니다.
 app.include_router(company.router)
 app.include_router(market.router)
-app.include_router(agent.router)
+# app.include_router(agent.router) # [REMOVED] 에이전트 서버(8001)로 분리됨
 app.include_router(auth.router)
 # 3. 비동기 API 호출을 위한 클라이언트 (앱 실행 시 생성, 종료 시 해제)
 # 이 클라이언트는 이제 company.py에서도 Depends를 통해 사용할 수 있습니다.
@@ -44,6 +44,16 @@ app.include_router(auth.router)
 async def startup_event():
     app.state.httpx_client = httpx.AsyncClient()
     print("FastAPI 앱이 시작되었습니다. API 클라이언트가 준비되었습니다.")
+    
+    # DB 연결 테스트
+    try:
+        with engine.connect() as connection:
+            result = connection.execute(text("SELECT 1"))
+            result.fetchone()
+        print(f"✅ 데이터베이스 연결 성공: {engine.url.host}:{engine.url.port}/{engine.url.database}")
+    except Exception as e:
+        print(f"❌ 데이터베이스 연결 실패: {str(e)}")
+        raise  # 연결 실패 시 앱 시작 중단
 
 @app.on_event("shutdown")
 async def shutdown_event():

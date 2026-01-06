@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from app.config import FMP_API_KEY, FMP_BASE_URL, STABLE_FMP_BASE_URL
 from app import models
 from app.mcp.decorators import register_tool
-# from app.services.translation_service import translate_company_profile  # [주석 처리]
+from app.services.translation_service import translate_company_profile
 
 
 def _extract_profile(payload: Any) -> Optional[Dict[str, Any]]:
@@ -78,8 +78,9 @@ async def fetch_company_profile(
 
         if fetched_profile:
             try:
-                # [NEW] 번역 기능이 있다면 여기서 호출
+                # [성능 최적화] 실시간 번역 비활성화 (추후 필요 시 활성화)
                 # translations = await translate_company_profile(fetched_profile)
+                translations = {} # 임시로 빈 딕셔너리 처리
 
                 # 로고 URL 처리 (FMP image 우선, 없으면 Clearbit fallback)
                 logo_url = fetched_profile.get("image")
@@ -89,14 +90,17 @@ async def fetch_company_profile(
                         domain = website.replace('https://', '').replace('http://', '').split('/')[0]
                         logo_url = f"https://logo.clearbit.com/{domain}"
                 
-                # 한글명은 DB에 이미 있으면 유지, 없으면 나중에 수동 추가
+                # 기존 DB에 k_name이 있으면 유지, 없으면 None
+                existing_k_name = db_profile.k_name if db_profile else None
+                
+                # 번역된 데이터 사용 (번역 비활성화 상태이므로 원본 사용됨)
                 profile_record = models.CompanyProfile(
                     ticker=fetched_profile.get("symbol"),
                     companyName=fetched_profile.get("companyName"),
-                    k_name=None,  # 나중에 수동 업데이트 또는 번역 API 사용
-                    description=fetched_profile.get("description"),  # (번역본 사용 시: translations.get("description", ...))
-                    industry=fetched_profile.get("industry"),
-                    sector=fetched_profile.get("sector"),
+                    k_name=existing_k_name,  # 기존 값 유지
+                    description=translations.get("description") or fetched_profile.get("description"),
+                    industry=translations.get("industry") or fetched_profile.get("industry"),
+                    sector=translations.get("sector") or fetched_profile.get("sector"),
                     website=fetched_profile.get("website"),
                     logo_url=logo_url,
                     last_updated=datetime.now(),

@@ -41,74 +41,50 @@ async def fetch_analyst_ratings(
     if not cache_hit:
         print(f"[Cache MISS] FMP API 호출: analyst-stock-recommendations & price-target-consensus/{ticker}")
         
-        # 1. analyst-stock-recommendations (집계 통계)
+        # [최적화] API 호출 병렬화 함수
+        async def fetch_with_fallback(urls: list):
+            for api_url in urls:
+                try:
+                    resp = await client.get(api_url, timeout=5.0)
+                    if resp.status_code == 404: continue
+                    resp.raise_for_status()
+                    return resp.json()
+                except Exception as exc:
+                    print(f"[Warning] API 호출 실패 ({api_url}): {exc}")
+            return None
+
         recommendations_urls = [
             f"https://financialmodelingprep.com/stable/analyst-stock-recommendations/{ticker}?limit={limit}&apikey={FMP_API_KEY}",
             f"{FMP_BASE_URL}/analyst-stock-recommendations/{ticker}?limit={limit}&apikey={FMP_API_KEY}",
         ]
-        recommendations_data = None
-        for api_url in recommendations_urls:
-            try:
-                response = await client.get(api_url)
-                if response.status_code == 404:
-                    continue
-                response.raise_for_status()
-                recommendations_data = response.json()
-                print(f"[Info] analyst-stock-recommendations API 응답 성공: {api_url}")
-                break
-            except httpx.HTTPStatusError as exc:
-                if exc.response.status_code == 404:
-                    continue
-                print(f"[Warning] HTTP 에러 ({api_url}): {exc.response.status_code}")
-            except Exception as exc:
-                print(f"[Warning] 예외 ({api_url}): {exc}")
-        
-        # 2. price-target-consensus (목표주가)
-        # [수정] v3 엔드포인트가 데이터를 반환하지 않는 경우가 있어 v4로 변경
         price_target_urls = [
             f"https://financialmodelingprep.com/api/v4/price-target-consensus?symbol={ticker}&apikey={FMP_API_KEY}",
             f"{FMP_BASE_URL.replace('v3', 'v4')}/price-target-consensus?symbol={ticker}&apikey={FMP_API_KEY}",
         ]
-        price_target_data = None
-        for api_url in price_target_urls:
-            try:
-                response = await client.get(api_url)
-                if response.status_code == 404:
-                    continue
-                response.raise_for_status()
-                price_target_data = response.json()
-                print(f"[Info] price-target-consensus API 응답 성공: {api_url}")
-                break
-            except httpx.HTTPStatusError as exc:
-                if exc.response.status_code == 404:
-                    continue
-                print(f"[Warning] HTTP 에러 ({api_url}): {exc.response.status_code}")
-            except Exception as exc:
-                print(f"[Warning] 예외 ({api_url}): {exc}")
+
+        # 병렬 호출 실행
+        import asyncio
+        results = await asyncio.gather(
+            fetch_with_fallback(recommendations_urls),
+            fetch_with_fallback(price_target_urls)
+        )
+        recommendations_data, price_target_data = results
         
-        # 3. 두 데이터 병합 (date 기준)
         if recommendations_data is None:
             print(f"[Error] analyst-stock-recommendations API 실패: {ticker}")
             recommendations_data = []
         
-        # [수정] v4 price-target-consensus는 날짜가 없는 스냅샷이므로,
-        # 최신(첫 번째) 추천 데이터에만 현재 컨센서스 목표주가를 매핑합니다.
         current_consensus_target = None
         if price_target_data and isinstance(price_target_data, list) and len(price_target_data) > 0:
-            # v4 응답 예: [{'symbol': 'AAPL', 'targetConsensus': 286.11, ...}]
             current_consensus_target = price_target_data[0].get("targetConsensus")
         
         data = []
         for idx, rec_item in enumerate(recommendations_data):
             merged_item = rec_item.copy()
-            
-            # 최신 데이터(첫 번째 항목)에만 현재 목표주가 적용
             if idx == 0 and current_consensus_target:
                 merged_item["price_target"] = current_consensus_target
             else:
-                # 과거 데이터는 v3가 동작하지 않으므로 None (혹은 v3 데이터가 있다면 매핑 가능하지만 현재는 생략)
                 merged_item["price_target"] = None
-                
             data.append(merged_item)
         
         try:
@@ -280,16 +256,20 @@ async def fetch_analyst_consensus_card(
     """
     [Dashboard] 애널리스트 종합 투자의견 카드용 데이터를 생성합니다.
     """
-    # 1. 최신 투자의견 조회
-    ratings = await fetch_analyst_ratings(ticker, db, client, limit=1)
+    # [최적화] 투자의견과 현재 주가를 병렬로 조회
+    import asyncio
+    from app.services.market_service import fetch_stock_quote
+    
+    results = await asyncio.gather(
+        fetch_analyst_ratings(ticker, db, client, limit=1),
+        fetch_stock_quote(ticker, db, client)
+    )
+    ratings, quote = results
+
     if not ratings:
         return None
     
     latest = ratings[0]
-    
-    # 2. 현재 주가 조회 (Upside 계산용)
-    from app.services.market_service import fetch_stock_quote
-    quote = await fetch_stock_quote(ticker, db, client)
     current_price = quote.get("close") if quote else 0
     
     # 3. 데이터 가공
