@@ -11,6 +11,7 @@ from app.database import SessionLocal
 from app.routers.auth import get_current_user # (신분증 검사관)
 from app import models, schemas
 from app.mcp import service # [NEW] MCP 핵심 로직 임포트
+from openai import AsyncOpenAI
 
 # --- 2. DB 세션을 가져오는 함수 (동일) ---
 def get_db():
@@ -24,6 +25,9 @@ def get_db():
 def get_httpx_client(request: Request) -> httpx.AsyncClient:
     return request.app.state.httpx_client
 
+def get_openai_client(request: Request) -> AsyncOpenAI:
+    return request.app.state.openai_client
+
 # --- 4. AI 에이전트 라우터 생성 (동일) ---
 router = APIRouter(
     prefix="/api/v1/agent",
@@ -35,6 +39,7 @@ router = APIRouter(
 async def chat_with_agent(
     # 의존성 주입 (Dependency Injection)
     httpx_client: httpx.AsyncClient = Depends(get_httpx_client),
+    openai_client: AsyncOpenAI = Depends(get_openai_client),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
     request_body: schemas.ChatRequest = Body(...),
@@ -57,9 +62,11 @@ async def chat_with_agent(
         # service.run_mcp_agent는 이제 {"content": "...", "widgets": [...]} 형태의 dict를 반환합니다.
         result = await service.run_mcp_agent(
             user_message=message_content,
+            context_ticker=request_body.context_ticker,
             current_user=current_user,
             db=db,
-            httpx_client=httpx_client
+            httpx_client=httpx_client,
+            openai_client=openai_client
         )
         
         # 3. ChatResponse 객체 생성

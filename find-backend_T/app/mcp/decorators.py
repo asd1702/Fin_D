@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import inspect
 from typing import Any, Callable, Dict, List, Optional, Union, get_origin, get_args
+from enum import Enum
+from pydantic import BaseModel
 
 ToolCallable = Callable[..., Any]
 
@@ -51,6 +53,28 @@ def type_to_json_schema(annotation: Any) -> Dict[str, Any]:
         return {"type": "number"}
     if annotation in (bool,):
         return {"type": "boolean"}
+    
+    # [NEW] Enum 지원
+    if inspect.isclass(annotation) and issubclass(annotation, Enum):
+        return {
+            "type": "string",
+            "enum": [e.value for e in annotation]
+        }
+    
+    # [NEW] Pydantic 모델 지원
+    if inspect.isclass(annotation) and issubclass(annotation, BaseModel):
+        # Pydantic v2 호환성 확인
+        if hasattr(annotation, "model_json_schema"):
+            schema = annotation.model_json_schema()
+        else:
+            schema = annotation.schema()
+        
+        # OpenAI 스키마에 불필요한 필드 제거
+        schema.pop("title", None)
+        schema.pop("definitions", None)
+        schema.pop("$defs", None)
+        return schema
+
     if origin in (list, List):
         item_args = get_args(annotation)
         item_schema = type_to_json_schema(item_args[0]) if item_args else {"type": "string"}

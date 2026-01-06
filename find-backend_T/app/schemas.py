@@ -64,6 +64,7 @@ class User(UserBase):
 
 class ChatRequest(BaseModel):
     message: str # 프론트엔드가 보낼 "새 질문"
+    context_ticker: Optional[str] = None # [NEW] 현재 페이지의 종목 티커
 
 class ChatResponse(BaseModel):
     response: str # 서버가 반환할 "AI의 답변"

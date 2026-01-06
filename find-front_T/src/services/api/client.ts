@@ -10,8 +10,31 @@ const apiClient = axios.create({
   },
 })
 
+// [NEW] 에이전트 서버 전용 클라이언트 (Port 8001)
+const AGENT_API_URL = import.meta.env.VITE_AGENT_API_URL || 'http://localhost:8001'
+const agentClient = axios.create({
+  baseURL: `${AGENT_API_URL}/api/${API_VERSION}`,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+})
+
 // 요청 인터셉터: 토큰 추가
 apiClient.interceptors.request.use(
+  (config) => {
+    const token = sessionStorage.getItem('access_token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+    return config
+  },
+  (error) => {
+    return Promise.reject(error)
+  }
+)
+
+// 에이전트 클라이언트에도 동일한 인터셉터 적용
+agentClient.interceptors.request.use(
   (config) => {
     const token = sessionStorage.getItem('access_token')
     if (token) {
@@ -42,5 +65,6 @@ apiClient.interceptors.response.use(
   }
 )
 
+export { agentClient }
 export default apiClient
 

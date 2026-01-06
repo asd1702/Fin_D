@@ -116,4 +116,9 @@ export const companyApi = {
     })
     return response.data
   },
+  // [NEW] Health Analysis Widget
+  getHealthAnalysisWidget: async (ticker: string) => {
+    const response = await apiClient.get(`/company/widgets/health-analysis/${ticker}`)
+    return response.data
+  },
 }

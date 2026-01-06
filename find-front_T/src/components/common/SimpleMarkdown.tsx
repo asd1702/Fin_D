@@ -1,4 +1,5 @@
-import React from 'react';
+// React import removed to fix lint warning if not used
+
 
 interface SimpleMarkdownProps {
   children: string;
@@ -21,158 +22,209 @@ export default function SimpleMarkdown({ children }: SimpleMarkdownProps) {
   // 1. 줄 단위로 분리
   const lines = children.split('\n');
 
-  // 인라인 스타일 파서 (**강조** + 숫자 자동 강조 + 링크 자동 감지)
+  // 인라인 스타일 파서 (**강조** + 숫자 자동 강조 + 링크 파싱)
   const renderInline = (text: string) => {
-    // Step 1: URL 링크 감지 및 변환
-    const urlPattern = /(https?:\/\/[^\s]+)/g;
-    const partsWithLinks = text.split(urlPattern);
-    
-    return partsWithLinks.map((part, linkIndex) => {
-      // URL인 경우 하이퍼링크로 변환
-      if (urlPattern.test(part)) {
-        return (
-          <a
-            key={linkIndex}
-            href={part}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              color: '#4cc9f0',
-              textDecoration: 'underline',
-              textDecorationColor: 'rgba(76, 201, 240, 0.5)',
-              textUnderlineOffset: '2px',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = '#5dd9ff';
-              e.currentTarget.style.textDecorationColor = 'rgba(93, 217, 255, 0.8)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = '#4cc9f0';
-              e.currentTarget.style.textDecorationColor = 'rgba(76, 201, 240, 0.5)';
-            }}
-          >
-            {part}
-          </a>
-        );
+    // Step 1: 마크다운 링크 [Label](URL) 파싱
+    // [텍스트](URL) 또는 [텍스트] (URL) 패턴을 모두 찾습니다.
+    const mdLinkPattern = /\[([^\]]+)\]\s*\((https?:\/\/[^\s)]+)\)/g;
+    const partsWithMdLinks: (string | JSX.Element)[] = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = mdLinkPattern.exec(text)) !== null) {
+      // 매칭 이전의 텍스트 추가
+      if (match.index > lastIndex) {
+        partsWithMdLinks.push(text.substring(lastIndex, match.index));
       }
-      
-      // Step 2: **bold** 파싱
-      const boldParts = part.split(/(\*\*[^*]+\*\*)/g);
-      
-      return boldParts.map((boldPart, boldIndex) => {
-        if (boldPart.startsWith('**') && boldPart.endsWith('**')) {
-          const content = boldPart.slice(2, -2);
-          
-          // 숫자/금액 패턴 감지 (더 강한 강조)
-          const isFinancialData = /[\$₩€£¥]|%|\d+\.\d+[BMK]?|\d{1,3}(,\d{3})*/.test(content);
-          
+
+      const label = match[1];
+      const url = match[2];
+
+      partsWithMdLinks.push(
+        <a
+          key={`md-link-${match.index}`}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color: '#4cc9f0',
+            textDecoration: 'underline',
+            textDecorationColor: 'rgba(76, 201, 240, 0.5)',
+            textUnderlineOffset: '2px',
+            transition: 'all 0.2s ease',
+            cursor: 'pointer',
+            wordBreak: 'break-all',
+            fontWeight: '600'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = '#5dd9ff';
+            e.currentTarget.style.textDecorationColor = 'rgba(93, 217, 255, 0.8)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = '#4cc9f0';
+            e.currentTarget.style.textDecorationColor = 'rgba(76, 201, 240, 0.5)';
+          }}
+        >
+          {label}
+        </a>
+      );
+      lastIndex = mdLinkPattern.lastIndex;
+    }
+
+    if (lastIndex < text.length) {
+      partsWithMdLinks.push(text.substring(lastIndex));
+    }
+
+    // 마크다운 링크 처리가 완료된 각 파트에 대해 나머지 인라인 스타일(URL, Bold, Number) 적용
+    return partsWithMdLinks.map((part, index) => {
+      if (typeof part !== 'string') return part;
+
+      // Step 2: 일반 URL 링크 감지 (마크다운 링크가 아닌 순수 URL)
+      const urlPattern = /(https?:\/\/[^\s)]+)/g;
+      const partsWithUrls = part.split(urlPattern);
+
+      return partsWithUrls.map((subPart, urlIndex) => {
+        if (urlPattern.test(subPart)) {
           return (
-            <strong
-              key={`${linkIndex}-${boldIndex}`}
+            <a
+              key={`url-${index}-${urlIndex}`}
+              href={subPart}
+              target="_blank"
+              rel="noopener noreferrer"
               style={{
-                color: isFinancialData ? '#5dd9ff' : '#4cc9f0',
-                fontWeight: '700',
-                letterSpacing: '0.3px',
-                textShadow: isFinancialData ? '0 0 10px rgba(93, 217, 255, 0.4)' : 'none',
-                padding: '1px 4px',
-                borderRadius: '3px',
-                background: isFinancialData ? 'rgba(76, 201, 240, 0.12)' : 'transparent',
-                transition: 'all 0.2s ease'
+                color: '#4cc9f0',
+                textDecoration: 'underline',
+                textDecorationColor: 'rgba(76, 201, 240, 0.5)',
+                textUnderlineOffset: '2px',
+                transition: 'all 0.2s ease',
+                cursor: 'pointer',
+                wordBreak: 'break-all',
+                opacity: 0.8,
+                fontSize: '0.9em'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = '#5dd9ff';
+                e.currentTarget.style.opacity = '1';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = '#4cc9f0';
+                e.currentTarget.style.opacity = '0.8';
               }}
             >
-              {content}
-            </strong>
+              {subPart}
+            </a>
           );
         }
-        
-        // Step 3: 일반 텍스트 내 숫자도 강조 (bold 아닌 숫자)
-        const numberPattern = /([\$₩€£¥]?\d+\.?\d*[BMK%]?)/g;
-        const numParts = boldPart.split(numberPattern);
-        
-        return numParts.map((numPart, numIndex) => {
-          if (numberPattern.test(numPart)) {
+
+        // Step 3: **bold** 파싱
+        const boldParts = subPart.split(/(\*\*[^*]+\*\*)/g);
+
+        return boldParts.map((boldPart, boldIndex) => {
+          if (boldPart.startsWith('**') && boldPart.endsWith('**')) {
+            const content = boldPart.slice(2, -2);
+            const isFinancialData = /[\$₩€£¥]|%|\d+\.\d+[BMK]?|\d{1,3}(,\d{3})*/.test(content);
+
             return (
-              <span
-                key={`${linkIndex}-${boldIndex}-${numIndex}`}
+              <strong
+                key={`bold-${index}-${urlIndex}-${boldIndex}`}
                 style={{
-                  color: '#6dd9ff',
-                  fontWeight: '600',
-                  letterSpacing: '0.2px',
-                  textShadow: '0 0 6px rgba(109, 217, 255, 0.25)'
+                  color: isFinancialData ? '#5dd9ff' : '#4cc9f0',
+                  fontWeight: '700',
+                  padding: '1px 4px',
+                  borderRadius: '3px',
+                  background: isFinancialData ? 'rgba(76, 201, 240, 0.12)' : 'transparent',
                 }}
               >
-                {numPart}
-              </span>
+                {content}
+              </strong>
             );
           }
-          return <span key={`${linkIndex}-${boldIndex}-${numIndex}`}>{numPart}</span>;
+
+          // Step 4: 숫자 강조
+          const numberPattern = /([\$₩€£¥]?\d+\.?\d*[BMK%]?)/g;
+          const numParts = boldPart.split(numberPattern);
+
+          return numParts.map((numPart, numIndex) => {
+            if (numberPattern.test(numPart)) {
+              return (
+                <span
+                  key={`num-${index}-${urlIndex}-${boldIndex}-${numIndex}`}
+                  style={{
+                    color: '#6dd9ff',
+                    fontWeight: '600',
+                  }}
+                >
+                  {numPart}
+                </span>
+              );
+            }
+            return <span key={`text-${index}-${urlIndex}-${boldIndex}-${numIndex}`}>{numPart}</span>;
+          });
         });
       });
     });
   };
 
   return (
-    <div style={{ 
-      lineHeight: '1.8', 
-      fontSize: '15px', 
+    <div style={{
+      lineHeight: '1.8',
+      fontSize: '15px',
       color: '#e8e8e8',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
     }}>
       {lines.map((line, index) => {
         const trimmed = line.trim();
-        
+
         // [Header 3] ### 제목 (최대한 관대한 파싱)
         if (trimmed.includes('###')) {
           const title = trimmed.replace(/^#+\s*/, '').trim();
-          
+
           // [DEBUG]
           console.log('[Header Detected]', title);
-          
+
           // 이모지 포함 여부 OR 키워드 기반 감지
           const hasEmoji = /[\u{1F300}-\u{1F9FF}]|💡|🔍|📊|⚡|✨|🎯|📈/u.test(title);
           const isKeywordInsight = /인사이트|Insights|분석|Analysis|요약|Summary/i.test(title);
           const shouldHighlight = hasEmoji || isKeywordInsight;
 
           if (shouldHighlight) {
-              const emojiMatch = title.match(/[\u{1F300}-\u{1F9FF}]|💡|🔍|📊|⚡|✨|🎯|📈/u);
-              const emoji = emojiMatch ? emojiMatch[0] : '💡';
-              const textOnly = title.replace(/[\u{1F300}-\u{1F9FF}]|💡|🔍|📊|⚡|✨|🎯|📈/gu, '').trim();
+            const emojiMatch = title.match(/[\u{1F300}-\u{1F9FF}]|💡|🔍|📊|⚡|✨|🎯|📈/u);
+            const emoji = emojiMatch ? emojiMatch[0] : '💡';
+            const textOnly = title.replace(/[\u{1F300}-\u{1F9FF}]|💡|🔍|📊|⚡|✨|🎯|📈/gu, '').trim();
 
-              return (
-                  <div 
-                    key={index}
-                    style={{
-                        margin: '24px 0 18px 0',
-                        padding: '16px 20px',
-                        background: 'linear-gradient(135deg, rgba(76, 201, 240, 0.18) 0%, rgba(76, 201, 240, 0.08) 100%)',
-                        borderLeft: '5px solid #4cc9f0',
-                        borderRadius: '0 12px 12px 0',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '14px',
-                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(76, 201, 240, 0.1) inset',
-                        transition: 'all 0.3s ease'
-                    }}
-                  >
-                      {emoji && (
-                          <span style={{ fontSize: '26px', lineHeight: 1, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }}>
-                            {emoji}
-                          </span>
-                      )}
-                      <h3 style={{ 
-                        margin: 0, 
-                        fontSize: '17.5px', 
-                        fontWeight: '650', 
-                        color: '#ffffff', 
-                        letterSpacing: '0.4px',
-                        textShadow: '0 1px 2px rgba(0,0,0,0.2)'
-                      }}>
-                          {textOnly}
-                      </h3>
-                  </div>
-              )
+            return (
+              <div
+                key={index}
+                style={{
+                  margin: '24px 0 18px 0',
+                  padding: '16px 20px',
+                  background: 'linear-gradient(135deg, rgba(76, 201, 240, 0.18) 0%, rgba(76, 201, 240, 0.08) 100%)',
+                  borderLeft: '5px solid #4cc9f0',
+                  borderRadius: '0 12px 12px 0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '14px',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(76, 201, 240, 0.1) inset',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                {emoji && (
+                  <span style={{ fontSize: '26px', lineHeight: 1, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }}>
+                    {emoji}
+                  </span>
+                )}
+                <h3 style={{
+                  margin: 0,
+                  fontSize: '17.5px',
+                  fontWeight: '650',
+                  color: '#ffffff',
+                  letterSpacing: '0.4px',
+                  textShadow: '0 1px 2px rgba(0,0,0,0.2)'
+                }}>
+                  {textOnly}
+                </h3>
+              </div>
+            )
           }
 
           // 일반 헤더
@@ -191,7 +243,7 @@ export default function SimpleMarkdown({ children }: SimpleMarkdownProps) {
                 borderBottom: '1px solid rgba(76, 201, 240, 0.15)'
               }}
             >
-              <span 
+              <span
                 style={{
                   display: 'inline-block',
                   width: '4px',
@@ -199,7 +251,7 @@ export default function SimpleMarkdown({ children }: SimpleMarkdownProps) {
                   background: 'linear-gradient(180deg, #4cc9f0 0%, #3a9fcf 100%)',
                   borderRadius: '2px',
                   boxShadow: '0 0 8px rgba(76, 201, 240, 0.4)'
-                }} 
+                }}
               />
               {title}
             </h3>
@@ -209,26 +261,26 @@ export default function SimpleMarkdown({ children }: SimpleMarkdownProps) {
         // [List Item] ● 내용
         if (trimmed.startsWith('● ')) {
           return (
-            <div 
-              key={index} 
-              style={{ 
-                display: 'flex', 
+            <div
+              key={index}
+              style={{
+                display: 'flex',
                 alignItems: 'flex-start',
-                gap: '12px', 
+                gap: '12px',
                 marginBottom: '10px',
                 paddingLeft: '6px',
                 transition: 'all 0.2s ease'
               }}
             >
-              <span style={{ 
-                  color: '#4cc9f0', 
-                  fontSize: '8px', 
-                  marginTop: '8px',
-                  flexShrink: 0,
-                  filter: 'drop-shadow(0 0 2px rgba(76, 201, 240, 0.6))'
+              <span style={{
+                color: '#4cc9f0',
+                fontSize: '8px',
+                marginTop: '8px',
+                flexShrink: 0,
+                filter: 'drop-shadow(0 0 2px rgba(76, 201, 240, 0.6))'
               }}>●</span>
-              <span style={{ 
-                flex: 1, 
+              <span style={{
+                flex: 1,
                 fontSize: '15px',
                 lineHeight: '1.7'
               }}>
@@ -241,24 +293,24 @@ export default function SimpleMarkdown({ children }: SimpleMarkdownProps) {
         // [List Item] - 내용 (기존 호환성)
         if (trimmed.startsWith('- ')) {
           return (
-            <div 
-              key={index} 
-              style={{ 
-                display: 'flex', 
+            <div
+              key={index}
+              style={{
+                display: 'flex',
                 alignItems: 'flex-start',
-                gap: '12px', 
+                gap: '12px',
                 marginBottom: '10px',
                 paddingLeft: '6px'
               }}
             >
-              <span style={{ 
-                  color: '#4cc9f0', 
-                  fontSize: '8px', 
-                  marginTop: '8px',
-                  flexShrink: 0,
-                  filter: 'drop-shadow(0 0 2px rgba(76, 201, 240, 0.6))'
+              <span style={{
+                color: '#4cc9f0',
+                fontSize: '8px',
+                marginTop: '8px',
+                flexShrink: 0,
+                filter: 'drop-shadow(0 0 2px rgba(76, 201, 240, 0.6))'
               }}>●</span>
-              <span style={{ 
+              <span style={{
                 flex: 1,
                 fontSize: '15px',
                 lineHeight: '1.7'
@@ -271,25 +323,25 @@ export default function SimpleMarkdown({ children }: SimpleMarkdownProps) {
 
         // [Blockquote] > 인용
         if (trimmed.startsWith('> ')) {
-            return (
-              <div 
-                key={index}
-                style={{
-                    borderLeft: '4px solid rgba(76, 201, 240, 0.4)',
-                    paddingLeft: '16px',
-                    margin: '12px 0',
-                    color: '#b8b8b8',
-                    fontStyle: 'italic',
-                    backgroundColor: 'rgba(76, 201, 240, 0.05)',
-                    padding: '12px 16px',
-                    borderRadius: '0 6px 6px 0',
-                    fontSize: '14.5px',
-                    lineHeight: '1.6'
-                }}
-              >
-                {renderInline(trimmed.replace('> ', ''))}
-              </div>
-            )
+          return (
+            <div
+              key={index}
+              style={{
+                borderLeft: '4px solid rgba(76, 201, 240, 0.4)',
+                paddingLeft: '16px',
+                margin: '12px 0',
+                color: '#b8b8b8',
+                fontStyle: 'italic',
+                backgroundColor: 'rgba(76, 201, 240, 0.05)',
+                padding: '12px 16px',
+                borderRadius: '0 6px 6px 0',
+                fontSize: '14.5px',
+                lineHeight: '1.6'
+              }}
+            >
+              {renderInline(trimmed.replace('> ', ''))}
+            </div>
+          )
         }
 
         // [Empty Line]
@@ -299,7 +351,7 @@ export default function SimpleMarkdown({ children }: SimpleMarkdownProps) {
 
         // [Paragraph] 일반 텍스트
         return (
-          <div key={index} style={{ 
+          <div key={index} style={{
             marginBottom: '6px',
             lineHeight: '1.75'
           }}>

@@ -83,6 +83,7 @@ export type WidgetType =
   | 'insight_card'
   | 'financial_chart'
   | 'financial_table'
+  | 'health_analysis'
 
 export interface Widget {
   type: WidgetType
@@ -235,6 +236,21 @@ export interface FinancialTableWidget extends Widget {
   period_type: "annual" | "quarter";
   columns: FinancialTableColumn[];
   rows: FinancialTableRow[];
+}
+
+export interface HealthScoreComponent {
+  score: number;
+  label: string;
+  details: string;
+}
+
+export interface HealthAnalysisWidget extends Widget {
+  type: "health_analysis";
+  total: number;
+  summary: string;
+  profitability: HealthScoreComponent;
+  stability: HealthScoreComponent;
+  growth: HealthScoreComponent;
 }
 
 export interface FinancialStatementsView {

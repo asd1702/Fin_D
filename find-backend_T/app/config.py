@@ -23,3 +23,10 @@ print(f"FMP Key Loaded: {FMP_API_KEY is not None}")
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 40))
+
+# RDS 데이터베이스 설정
+RDS_HOST = os.getenv("RDS_HOST")
+RDS_USER = os.getenv("RDS_USER")
+RDS_PASSWORD = os.getenv("RDS_PASSWORD")
+RDS_DB_NAME = os.getenv("RDS_DB_NAME")
+RDS_PORT = os.getenv("RDS_PORT", "3306")

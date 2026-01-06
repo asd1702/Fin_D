@@ -15,6 +15,7 @@ from app.services.key_metrics_service import fetch_company_key_metrics
 from app.services.market_service import fetch_stock_quote
 from app.services.ratings_service import fetch_analyst_ratings
 from app.services.insider_service import fetch_insider_trades
+from app.services.health_analysis_service import fetch_health_analysis_widget
 
 
 # APIRouter 객체 생성
@@ -254,6 +255,8 @@ async def get_all_companies(
 from app.services.ratings_service import fetch_analyst_consensus_card
 from app.services.key_metrics_service import fetch_metrics_grid_widget
 from app.services.financial_statements_service import fetch_financial_statements_view
+import json
+from datetime import datetime, timedelta
 
 @router.get("/widgets/analyst-consensus/{ticker}")
 async def get_analyst_consensus_widget(
@@ -261,9 +264,26 @@ async def get_analyst_consensus_widget(
     client: httpx.AsyncClient = Depends(get_httpx_client),
     db: Session = Depends(get_db)
 ):
+    # [최적화] 위젯 캐싱 도입 (1시간)
+    cache_key = f"widget_analyst_{ticker}"
+    cache = db.query(models.ApiCache).filter(
+        models.ApiCache.cache_key == cache_key,
+        models.ApiCache.expires_at > datetime.now()
+    ).first()
+    if cache:
+        return cache.data
+
     widget = await fetch_analyst_consensus_card(ticker, db, client)
     if not widget:
         raise HTTPException(status_code=404, detail="위젯 데이터를 생성할 수 없습니다.")
+    
+    # 캐시 저장
+    db.merge(models.ApiCache(
+        cache_key=cache_key,
+        data=widget,
+        expires_at=datetime.now() + timedelta(hours=1)
+    ))
+    db.commit()
     return widget
 
 @router.get("/widgets/metrics-grid/{ticker}")
@@ -272,13 +292,61 @@ async def get_metrics_grid_widget(
     client: httpx.AsyncClient = Depends(get_httpx_client),
     db: Session = Depends(get_db)
 ):
+    # [최적화] 위젯 캐싱 도입 (1시간)
+    cache_key = f"widget_metrics_{ticker}"
+    cache = db.query(models.ApiCache).filter(
+        models.ApiCache.cache_key == cache_key,
+        models.ApiCache.expires_at > datetime.now()
+    ).first()
+    if cache:
+        return cache.data
+
     widget = await fetch_metrics_grid_widget(ticker, db, client)
     if not widget:
         raise HTTPException(status_code=404, detail="위젯 데이터를 생성할 수 없습니다.")
+    
+    # 캐시 저장
+    db.merge(models.ApiCache(
+        cache_key=cache_key,
+        data=widget,
+        expires_at=datetime.now() + timedelta(hours=1)
+    ))
+    db.commit()
+    return widget
+
+@router.get("/widgets/health-analysis/{ticker}")
+async def get_health_analysis_widget(
+    ticker: str,
+    client: httpx.AsyncClient = Depends(get_httpx_client),
+    db: Session = Depends(get_db)
+):
+    """
+    [Dashboard] 재무 건전성 분석 위젯 데이터를 반환합니다.
+    [최적화] 위젯 캐싱 도입 (24시간)
+    """
+    cache_key = f"widget_health_{ticker}"
+    cache = db.query(models.ApiCache).filter(
+        models.ApiCache.cache_key == cache_key,
+        models.ApiCache.expires_at > datetime.now()
+    ).first()
+    if cache:
+        return cache.data
+
+    widget = await fetch_health_analysis_widget(ticker, db, client)
+    if not widget:
+        raise HTTPException(status_code=404, detail="건전성 분석 데이터를 생성할 수 없습니다.")
+    
+    # 캐시 저장
+    db.merge(models.ApiCache(
+        cache_key=cache_key,
+        data=widget,
+        expires_at=datetime.now() + timedelta(hours=24)
+    ))
+    db.commit()
     return widget
 
 @router.get("/widgets/financial-statements/{ticker}")
-async def get_financial_statements_view(
+async def get_financial_statements_view_endpoint(
     ticker: str,
     sub_tab: str = "income",
     period: str = "annual",
@@ -288,9 +356,24 @@ async def get_financial_statements_view(
 ):
     """
     재무제표 뷰 위젯을 반환합니다.
-    sub_tab: income | balance | cash_flow
-    period: annual | quarter
-    year_range: 1 | 2 | 3 (분기별 데이터 범위, 연간일 때는 무시)
+    [최적화] 위젯 캐싱 도입 (24시간)
     """
+    # sub_tab, period, year_range에 따라 캐시 키 분리
+    cache_key = f"widget_fin_{ticker}_{sub_tab}_{period}_{year_range}"
+    cache = db.query(models.ApiCache).filter(
+        models.ApiCache.cache_key == cache_key,
+        models.ApiCache.expires_at > datetime.now()
+    ).first()
+    if cache:
+        return cache.data
+
     view = await fetch_financial_statements_view(ticker, db, client, sub_tab, period, year_range)
+    if view:
+        # 캐시 저장
+        db.merge(models.ApiCache(
+            cache_key=cache_key,
+            data=view,
+            expires_at=datetime.now() + timedelta(hours=24)
+        ))
+        db.commit()
     return view
