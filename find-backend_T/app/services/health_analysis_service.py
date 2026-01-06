@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 from app.services.key_metrics_service import fetch_company_key_metrics
 from app.services.income_statement_service import fetch_company_income_statements
 
+import asyncio
+
 async def fetch_health_analysis_widget(
     ticker: str,
     db: Session,
@@ -19,11 +21,14 @@ async def fetch_health_analysis_widget(
     2. 안정성 (Stability/Solvency): Debt-to-Equity, Current Ratio
     3. 성장성 (Growth): Revenue Growth, EPS Growth (YoY)
     """
-    # 1. 필요 데이터 로드 (Key Metrics 2개, Income Statements 2개)
-    metrics_data = await fetch_company_key_metrics(ticker, db, client, limit=2)
-    metrics = metrics_data.get("records", [])
-    
-    income_data = await fetch_company_income_statements(ticker, db, client, limit=2)
+    # 1. 필요 데이터 병렬 로드 (Key Metrics 2개, Income Statements 2개)
+    import asyncio
+    results = await asyncio.gather(
+        fetch_company_key_metrics(ticker, db, client, limit=2),
+        fetch_company_income_statements(ticker, db, client, limit=2)
+    )
+    metrics_data, income_data = results
+    metrics = metrics_data.get("records", []) if metrics_data else []
     
     if not metrics or not income_data:
         return None
@@ -99,7 +104,7 @@ async def fetch_health_analysis_widget(
     else: grow_msg = "역성장"
 
     # --- 최종 점수 및 분석 메시지 ---
-    total_score = Math.round(((prof_score + stab_score + grow_score) / 30) * 100)
+    total_score = int(((prof_score + stab_score + grow_score) / 30) * 100 + 0.5)
     
     # 종합 평가 메시지 생성
     summary_msg = ""
@@ -128,10 +133,3 @@ async def fetch_health_analysis_widget(
             "details": f"매출성장 {rev_growth:.1f}%, 이익성장 {eps_growth:.1f}%"
         }
     }
-
-class MathProxy:
-    @staticmethod
-    def round(val):
-        return int(val + 0.5)
-
-Math = MathProxy()

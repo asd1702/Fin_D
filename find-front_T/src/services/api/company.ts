@@ -121,4 +121,15 @@ export const companyApi = {
     const response = await apiClient.get(`/company/widgets/health-analysis/${ticker}`)
     return response.data
   },
+
+  // [NEW] User Favorite
+  getFavoriteStatus: async (ticker: string): Promise<{ is_favorite: boolean; ticker: string }> => {
+    const response = await apiClient.get(`/user/favorite/${ticker}`)
+    return response.data
+  },
+
+  toggleFavorite: async (ticker: string): Promise<{ is_favorite: boolean; ticker: string }> => {
+    const response = await apiClient.post(`/user/favorite/${ticker}`)
+    return response.data
+  },
 }

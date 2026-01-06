@@ -48,6 +48,7 @@ export default function CompanyDetail() {
   const [analystWidget, setAnalystWidget] = useState<AnalystCardWidget | null>(null)
   const [metricsWidget, setMetricsWidget] = useState<MetricsGridWidget | null>(null)
   const [healthAnalysis, setHealthAnalysis] = useState<HealthAnalysisWidget | null>(null)
+  const [isFavorite, setIsFavorite] = useState(false)
 
   const [activeTab, setActiveTab] = useState('overview')
   const [detailLoading, setDetailLoading] = useState(false)
@@ -109,16 +110,16 @@ export default function CompanyDetail() {
     setInsiderTrades([])
     setAnalystWidget(null)
     setMetricsWidget(null)
+    setHealthAnalysis(null)
+    setIsFavorite(false)
 
     // [최적화] 점진적 로딩(Progressive Loading) 적용
-    // 모든 데이터를 Promise.all로 기다리지 않고 도착하는 대로 렌더링
     setDetailLoading(true)
 
     // 1. 프로필 & 주가 (최우선순위)
     companyApi.getProfile(ticker)
       .then(profile => {
         setCompany(profile)
-        // 프로필이 로드되면 기본 틀은 보여줄 수 있으므로 로딩 종료
         if (profile) setDetailLoading(false)
       })
       .catch(err => {
@@ -147,63 +148,51 @@ export default function CompanyDetail() {
       .then(data => setHealthAnalysis(data))
       .catch(() => null)
 
+    // 4. 즐겨찾기 상태 조회
+    companyApi.getFavoriteStatus(ticker)
+      .then(data => setIsFavorite(data.is_favorite))
+      .catch(() => setIsFavorite(false))
+
   }, [ticker])
 
   // 실시간 주가 업데이트 (장 중에만)
   useEffect(() => {
     if (!ticker || detailLoading || !quote) return
 
-    // 주가 새로고침 함수
     const refreshQuote = async () => {
       try {
         const quoteData = await companyApi.getQuote(ticker)
         if (quoteData) {
           setQuote(quoteData)
-          console.log(`[기업 세부] ${ticker} 주가 갱신: $${quoteData.price.toFixed(2)}`)
         }
       } catch (err) {
         console.error(`[기업 세부] ${ticker} 주가 업데이트 실패:`, err)
       }
     }
 
-    // 마켓 상태 체크 함수
     const checkMarketStatus = () => {
       const status = isUSMarketOpen()
       return status.isOpen
     }
 
-    // 초기 상태 체크
-    const isOpen = checkMarketStatus()
-
     let quoteInterval: ReturnType<typeof setInterval> | null = null
     let statusInterval: ReturnType<typeof setInterval> | null = null
 
-    if (isOpen) {
-      // 장 중: 30초마다 주가 업데이트
+    if (checkMarketStatus()) {
       quoteInterval = setInterval(refreshQuote, 30000)
-      console.log(`[기업 세부] ${ticker} 실시간 업데이트 시작 (30초 주기)`)
     }
 
-    // 1분마다 마켓 상태 체크 (장 오픈/마감 감지)
     statusInterval = setInterval(() => {
       const newStatus = checkMarketStatus()
-
-      // 장이 열렸을 때: 업데이트 시작
       if (newStatus && !quoteInterval) {
         quoteInterval = setInterval(refreshQuote, 30000)
-        refreshQuote() // 즉시 1회 업데이트
-        console.log(`[기업 세부] ${ticker} 장 오픈 - 실시간 업데이트 시작`)
-      }
-
-      // 장이 닫혔을 때: 업데이트 중단
-      if (!newStatus && quoteInterval) {
+        refreshQuote()
+      } else if (!newStatus && quoteInterval) {
         clearInterval(quoteInterval)
         quoteInterval = null
-        console.log(`[기업 세부] ${ticker} 장 마감 - 실시간 업데이트 중단`)
       }
-    }, 60000) // 1분마다
+    }, 60000)
 
-    // Cleanup
     return () => {
       if (quoteInterval) clearInterval(quoteInterval)
       if (statusInterval) clearInterval(statusInterval)
@@ -254,7 +243,15 @@ export default function CompanyDetail() {
     navigate(`/company/${t}`)
   }
 
-  // [LEGACY 제거] Backend HealthAnalysisWidget 사용
+  const handleFavoriteClick = async () => {
+    if (!ticker) return
+    try {
+      const result = await companyApi.toggleFavorite(ticker)
+      setIsFavorite(result.is_favorite)
+    } catch (err) {
+      console.error("즐겨찾기 토글 실패:", err)
+    }
+  }
 
   const insiderStats = useMemo(() => {
     if (!insiderTrades.length) return null
@@ -262,24 +259,15 @@ export default function CompanyDetail() {
     const classifyTrade = (type?: string) => {
       if (!type) return 'neutral'
       const normalized = type.toLowerCase()
-
       const buyCodes = ['p', 'b', 'm', 'a']
       const buyKeywords = ['buy', 'acq', 'purchase', 'award', 'grant']
-      if (buyCodes.some((code) => normalized.startsWith(code))) {
-        return 'buy'
-      }
-      if (buyKeywords.some((kw) => normalized.includes(kw))) {
-        return 'buy'
-      }
+      if (buyCodes.some((code) => normalized.startsWith(code))) return 'buy'
+      if (buyKeywords.some((kw) => normalized.includes(kw))) return 'buy'
 
       const sellCodes = ['s', 'f', 'g']
       const sellKeywords = ['sale', 'sell', 'in-kind', 'inkind', 'gift']
-      if (sellCodes.some((code) => normalized.startsWith(code))) {
-        return 'sell'
-      }
-      if (sellKeywords.some((kw) => normalized.includes(kw))) {
-        return 'sell'
-      }
+      if (sellCodes.some((code) => normalized.startsWith(code))) return 'sell'
+      if (sellKeywords.some((kw) => normalized.includes(kw))) return 'sell'
 
       return 'neutral'
     }
@@ -319,6 +307,142 @@ export default function CompanyDetail() {
       tradeCount: insiderTrades.length,
     }
   }, [insiderTrades])
+
+  // 탭 콘텐츠 메모이제이션 (불필요한 리렌더링 방지)
+  const renderTabContent = useMemo(() => {
+    if (!company || !ticker) return null
+
+    switch (activeTab) {
+      case 'overview':
+        return (
+          <div key="overview-tab" className="tab-content-wrapper">
+            <section className="hero-section">
+              <div className="health-score-container">
+                <h2 className="health-score-title">재무 건전성 분석</h2>
+                {healthAnalysis ? (
+                  <>
+                    <div className="health-score-circle">
+                      <div className="score-number">{healthAnalysis.total}</div>
+                      <div className="score-max">/ 100</div>
+                    </div>
+                    <div className="health-bars">
+                      {(['profitability', 'growth', 'stability'] as const).map(key => (
+                        <div className="health-bar-item" key={key}>
+                          <div className="bar-label">
+                            <span>{key === 'profitability' ? '수익성' : key === 'growth' ? '성장성' : '안정성'} : {healthAnalysis[key].label}</span>
+                            <span className="bar-score">{healthAnalysis[key].details}</span>
+                          </div>
+                          <div className="bar-track">
+                            <div className={`bar-fill ${key}`} style={{ width: `${healthAnalysis[key].score * 10}%` }}></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="health-summary" style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', fontSize: '0.9rem', color: 'var(--color-text-secondary)', lineHeight: '1.5' }}>
+                      {healthAnalysis.summary}
+                    </div>
+                  </>
+                ) : (
+                  <div className="health-score-empty">데이터 부족</div>
+                )}
+                <p className="health-disclaimer">※ 이 점수는 재무지표 기반 분석이며, 투자 조언이 아닙니다.</p>
+              </div>
+              <div className="company-overview">
+                <h3 className="overview-title">기업 개요</h3>
+                <p className="company-description">{company?.description || '기업 설명이 없습니다.'}</p>
+              </div>
+            </section>
+
+            <div className="dashboard-layout">
+              <section className="key-metrics-section">
+                <h2 className="section-title">핵심 지표</h2>
+                {metricsWidget ? <MetricsGrid widget={metricsWidget} /> : <div className="metrics-loading">데이터 로딩 중...</div>}
+              </section>
+
+              {analystWidget && (
+                <section className="analyst-section analyst-wide">
+                  <div className="section-header">
+                    <div>
+                      <p className="section-eyebrow">Analyst Insight</p>
+                      <h2 className="section-title">애널리스트 컨센서스</h2>
+                    </div>
+                    <span className="section-pill">최근 업데이트</span>
+                  </div>
+                  <AnalystCard widget={analystWidget} />
+                </section>
+              )}
+
+              <section className="insider-section">
+                <div className="section-header">
+                  <div>
+                    <p className="section-eyebrow">Insider Flow</p>
+                    <h2 className="section-title">내부자 거래 (최근 3개월)</h2>
+                  </div>
+                  {insiderStats && <span className="section-pill">{insiderStats.tradeCount}건</span>}
+                </div>
+                <div className="insider-summary">
+                  {insiderStats ? (
+                    <>
+                      <div className="insider-status-row">
+                        <span className={`insider-pill ${insiderStats.status}`}>{insiderStats.statusLabel}</span>
+                        <span className="insider-net">순변동 {insiderStats.netVol >= 0 ? '+' : '-'}{Math.abs(insiderStats.netVol).toLocaleString()}주</span>
+                      </div>
+                      <div className="insider-progress">
+                        <div className="insider-progress-row">
+                          <span>매수</span>
+                          <div className="insider-progress-track"><div className="insider-progress-fill buy" style={{ width: `${insiderStats.buyRatio}%` }} /></div>
+                          <span>{insiderStats.buyVol.toLocaleString()}주</span>
+                        </div>
+                        <div className="insider-progress-row">
+                          <span>매도</span>
+                          <div className="insider-progress-track"><div className="insider-progress-fill sell" style={{ width: `${insiderStats.sellRatio}%` }} /></div>
+                          <span>{insiderStats.sellVol.toLocaleString()}주</span>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="insider-empty">최근 거래 내역 없음</p>
+                  )}
+                </div>
+              </section>
+
+              <section className="financials-chart-section">
+                <h2 className="section-title">재무 실적</h2>
+                <FinancialPerformanceChart ticker={ticker} />
+              </section>
+            </div>
+          </div>
+        )
+      case 'chart':
+        return (
+          <div key="chart-tab" className="tab-content-wrapper">
+            <div className="chart-tab-content">
+              <AdvancedChartWidget symbol={ticker} />
+            </div>
+          </div>
+        )
+      case 'financials':
+        return (
+          <div key="financials-tab" className="tab-content-wrapper">
+            <FinancialStatementsView ticker={ticker} />
+          </div>
+        )
+      case 'news':
+        return (
+          <div key="news-tab" className="tab-content-wrapper">
+            <div className="tab-placeholder"><h2>📰 뉴스</h2><p>최신 뉴스 목록 (추후 구현)</p></div>
+          </div>
+        )
+      case 'analysis':
+        return (
+          <div key="analysis-tab" className="tab-content-wrapper">
+            <div className="tab-placeholder"><h2>📊 투자의견</h2><p>상세 애널리스트 분석 (추후 구현)</p></div>
+          </div>
+        )
+      default:
+        return null
+    }
+  }, [activeTab, healthAnalysis, analystWidget, metricsWidget, insiderStats, company, ticker])
 
   if (!ticker) {
     return (
@@ -374,65 +498,46 @@ export default function CompanyDetail() {
             </div>
           )}
 
-          {searchQuery.trim() && !searchLoading && searchResults.length === 0 && (
-            <div className="company-search-results">
-              <div className="search-no-results">
-                <div className="no-results-icon">🔍</div>
-                <div className="no-results-text">검색 결과가 없습니다</div>
-                <div className="no-results-hint">다른 검색어를 입력해보세요</div>
-              </div>
-            </div>
-          )}
-
           {!searchQuery.trim() && (
-            <>
+            <div className="company-dashboard-section">
+              <h2 className="company-dashboard-title">{getMarketTitle()}</h2>
               {dashboardLoading ? (
-                <div className="company-dashboard-section">
-                  <h2 className="company-dashboard-title">{getMarketTitle()}</h2>
-                  <div className="dashboard-grid">
-                    {Array.from({ length: 8 }).map((_, index) => (
-                      <SkeletonCard key={index} />
-                    ))}
-                  </div>
-                </div>
-              ) : dashboardCompanies.length > 0 ? (
-                <div className="company-dashboard-section">
-                  <h2 className="company-dashboard-title">{getMarketTitle()}</h2>
-                  <div className="dashboard-grid">
-                    {dashboardCompanies.map((comp, index) => (
-                      <motion.div
-                        key={comp.ticker}
-                        variants={cardVariants}
-                        initial="hidden"
-                        animate="visible"
-                        custom={index}
-                      >
-                        <CompanyCard
-                          company={comp}
-                          quote={dashboardQuotes[comp.ticker]}
-                          onClick={() => handleCompanyClick(comp.ticker)}
-                        />
-                      </motion.div>
-                    ))}
-                  </div>
+                <div className="dashboard-grid">
+                  {Array.from({ length: 8 }).map((_, index) => (
+                    <SkeletonCard key={index} />
+                  ))}
                 </div>
               ) : (
-                <div className="company-loading">
-                  <div className="search-no-results">
-                    <div className="no-results-icon">📊</div>
-                    <div className="no-results-text">데이터를 불러올 수 없습니다</div>
-                    <div className="no-results-hint">잠시 후 다시 시도해주세요</div>
-                  </div>
+                <div className="dashboard-grid">
+                  {dashboardCompanies.map((comp, index) => (
+                    <motion.div
+                      key={comp.ticker}
+                      variants={cardVariants}
+                      initial="hidden"
+                      animate="visible"
+                      custom={index}
+                    >
+                      <CompanyCard
+                        company={comp}
+                        quote={dashboardQuotes[comp.ticker]}
+                        onClick={() => handleCompanyClick(comp.ticker)}
+                      />
+                    </motion.div>
+                  ))}
                 </div>
               )}
-            </>
+            </div>
           )}
         </div>
       </div>
     )
   }
 
-  if (ticker && (detailLoading || !company || company.ticker !== ticker)) {
+  // 탭 콘텐츠 메모이제이션 (불필요한 리렌더링 방지)
+  // [FIX] Hooks는 조건부 return보다 먼저 선언되어야 함
+
+
+  if (detailLoading || !company || company.ticker !== ticker) {
     return (
       <div className="company-loading">
         <Loading />
@@ -440,20 +545,15 @@ export default function CompanyDetail() {
     )
   }
 
-  if (!ticker || !company) {
-    return null
-  }
+
+
+
 
   return (
     <div className="company-detail">
       <div className="company-header">
         <div className="company-header-left">
-          {/* 뒤로가기 아이콘 버튼 */}
-          <button
-            onClick={() => navigate(-1)}
-            className="back-button-icon"
-            title="뒤로가기 (ESC)"
-          >
+          <button onClick={() => navigate(-1)} className="back-button-icon" title="뒤로가기 (ESC)">
             <svg className="back-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
@@ -465,8 +565,7 @@ export default function CompanyDetail() {
               alt={`${company.companyName} logo`}
               className="company-logo-clean"
               onError={(e) => {
-                e.currentTarget.src = 'https://via.placeholder.com/48/00000000/e8e9ed?text=' +
-                  (company.ticker?.charAt(0) || '?')
+                e.currentTarget.src = 'https://via.placeholder.com/48/00000000/e8e9ed?text=' + (company.ticker?.charAt(0) || '?')
               }}
             />
           )}
@@ -496,8 +595,12 @@ export default function CompanyDetail() {
               </div>
             </div>
           )}
-          <button className="company-favorite" title="즐겨찾기에 추가">
-            ⭐
+          <button
+            className={`company-favorite ${isFavorite ? 'active' : ''}`}
+            title={isFavorite ? "즐겨찾기에서 제거" : "즐겨찾기에 추가"}
+            onClick={handleFavoriteClick}
+          >
+            {isFavorite ? '⭐' : '☆'}
           </button>
         </div>
       </div>
@@ -515,198 +618,7 @@ export default function CompanyDetail() {
       </nav>
 
       <div className="company-content">
-        {activeTab === 'overview' && (
-          <div key="overview-tab" className="tab-content-wrapper">
-            <>
-              <section className="hero-section">
-                <div className="health-score-container">
-                  <h2 className="health-score-title">재무 건전성 분석</h2>
-                  {healthAnalysis ? (
-                    <>
-                      <div className="health-score-circle">
-                        <div className="score-number">{healthAnalysis.total}</div>
-                        <div className="score-max">/ 100</div>
-                      </div>
-                      <div className="health-bars">
-                        <div className="health-bar-item">
-                          <div className="bar-label">
-                            <span>수익성 : {healthAnalysis.profitability.label}</span>
-                            <span className="bar-score">{healthAnalysis.profitability.details}</span>
-                          </div>
-                          <div className="bar-track">
-                            <div className="bar-fill profitability" style={{ width: `${healthAnalysis.profitability.score * 10}%` }}></div>
-                          </div>
-                        </div>
-                        <div className="health-bar-item">
-                          <div className="bar-label">
-                            <span>성장성 : {healthAnalysis.growth.label}</span>
-                            <span className="bar-score">{healthAnalysis.growth.details}</span>
-                          </div>
-                          <div className="bar-track">
-                            <div className="bar-fill growth" style={{ width: `${healthAnalysis.growth.score * 10}%` }}></div>
-                          </div>
-                        </div>
-                        <div className="health-bar-item">
-                          <div className="bar-label">
-                            <span>안정성 : {healthAnalysis.stability.label}</span>
-                            <span className="bar-score">{healthAnalysis.stability.details}</span>
-                          </div>
-                          <div className="bar-track">
-                            <div className="bar-fill stability" style={{ width: `${healthAnalysis.stability.score * 10}%` }}></div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="health-summary" style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', fontSize: '0.9rem', color: 'var(--color-text-secondary)', lineHeight: '1.5' }}>
-                        {healthAnalysis.summary}
-                      </div>
-                    </>
-                  ) : (
-                    <div className="health-score-empty">데이터 부족</div>
-                  )}
-                  <p className="health-disclaimer">
-                    ※ 이 점수는 재무지표 기반 분석이며, 투자 조언이 아닙니다.
-                  </p>
-                </div>
-                <div className="company-overview">
-                  <h3 className="overview-title">기업 개요</h3>
-                  <p className="company-description">{company.description || '기업 설명이 없습니다.'}</p>
-                </div>
-              </section>
-
-              <div className="dashboard-layout">
-                <section className="key-metrics-section">
-                  <h2 className="section-title">핵심 지표</h2>
-                  {metricsWidget ? (
-                    <MetricsGrid widget={metricsWidget} />
-                  ) : (
-                    <div className="metrics-loading">데이터 로딩 중...</div>
-                  )}
-                </section>
-
-                {analystWidget && (
-                  <section className="analyst-section analyst-wide">
-                    <div className="section-header">
-                      <div>
-                        <p className="section-eyebrow">Analyst Insight</p>
-                        <h2 className="section-title">애널리스트 컨센서스</h2>
-                      </div>
-                      <span className="section-pill">최근 업데이트</span>
-                    </div>
-                    <AnalystCard widget={analystWidget} />
-                  </section>
-                )}
-
-                <section className="insider-section">
-                  <div className="section-header">
-                    <div>
-                      <p className="section-eyebrow">Insider Flow</p>
-                      <h2 className="section-title">내부자 거래 (최근 3개월)</h2>
-                    </div>
-                    {insiderStats && (
-                      <span className="section-pill">{insiderStats.tradeCount}건</span>
-                    )}
-                  </div>
-                  <div className="insider-summary">
-                    {insiderStats ? (
-                      <>
-                        <div className="insider-status-row">
-                          <span className={`insider-pill ${insiderStats.status}`}>
-                            {insiderStats.statusLabel}
-                          </span>
-                          <span className="insider-net">
-                            순변동 {insiderStats.netVol >= 0 ? '+' : '-'}
-                            {Math.abs(insiderStats.netVol).toLocaleString()}주
-                          </span>
-                        </div>
-                        <div className="insider-progress">
-                          <div className="insider-progress-row">
-                            <span>매수</span>
-                            <div className="insider-progress-track">
-                              <div
-                                className="insider-progress-fill buy"
-                                style={{ width: `${insiderStats.buyRatio}%` }}
-                              />
-                            </div>
-                            <span>{insiderStats.buyVol.toLocaleString()}주</span>
-                          </div>
-                          <div className="insider-progress-row">
-                            <span>매도</span>
-                            <div className="insider-progress-track">
-                              <div
-                                className="insider-progress-fill sell"
-                                style={{ width: `${insiderStats.sellRatio}%` }}
-                              />
-                            </div>
-                            <span>{insiderStats.sellVol.toLocaleString()}주</span>
-                          </div>
-                        </div>
-                        {insiderTrades.length > 0 && (
-                          <div className="insider-trade-list">
-                            {insiderTrades.slice(0, 6).map((trade, idx) => (
-                              <div key={`${trade.date}-${idx}`} className="insider-trade-item">
-                                <div className="trade-date">{trade.date}</div>
-                                <div className="trade-type">{trade.type || 'N/A'}</div>
-                                <div className="trade-volume">{trade.volume?.toLocaleString()}주</div>
-                                {trade.insider_name && (
-                                  <div className="trade-insider">{trade.insider_name}</div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <p className="insider-empty">최근 거래 내역 없음</p>
-                    )}
-                  </div>
-                </section>
-
-                <section className="financials-chart-section">
-                  <h2 className="section-title">재무 실적</h2>
-                  {ticker ? (
-                    <FinancialPerformanceChart ticker={ticker} />
-                  ) : (
-                    <div className="chart-placeholder">
-                      <p>📊 매출 및 순이익 차트 (데이터를 불러오는 중입니다)</p>
-                    </div>
-                  )}
-                </section>
-              </div>
-            </>
-          </div>
-        )}
-
-        {activeTab === 'chart' && (
-          <div key="chart-tab" className="tab-content-wrapper">
-            <div className="chart-tab-content">
-              <AdvancedChartWidget symbol={ticker} />
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'financials' && ticker && (
-          <div key="financials-tab" className="tab-content-wrapper">
-            <FinancialStatementsView ticker={ticker} />
-          </div>
-        )}
-
-        {activeTab === 'news' && (
-          <div key="news-tab" className="tab-content-wrapper">
-            <div className="tab-placeholder">
-              <h2>📰 뉴스</h2>
-              <p>최신 뉴스 목록 (추후 구현)</p>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'analysis' && (
-          <div key="analysis-tab" className="tab-content-wrapper">
-            <div className="tab-placeholder">
-              <h2>📊 투자의견</h2>
-              <p>상세 애널리스트 분석 (추후 구현)</p>
-            </div>
-          </div>
-        )}
+        {renderTabContent}
       </div>
     </div>
   )
