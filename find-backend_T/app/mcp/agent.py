@@ -137,31 +137,30 @@ class MCPAgent:
             if intent in INTENT_PROMPT_MAP:
                 system_content += INTENT_PROMPT_MAP[intent]
         
-        # [NEW] 컨텍스트 티커 정보 주입 (강력한 가이드라인 제공)
+        # [NEW] 컨텍스트 티커 정보 주입 (가이드라인)
         if context_ticker:
-            system_content += f"""
-
-[CONTEXT_PRIORITY]
-- 현재 사용자는 종목 상세 페이지({context_ticker})를 보고 있습니다.
-- **최우선 규칙**: 질문 내용에 다른 종목명이 명시되어 있지 않다면, 이전 대화 맥락({messages[1:] if len(messages)>1 else '없음'})이 무엇이었든 무시하고 반드시 {context_ticker}를 분석 대상으로 삼으세요.
-- 만약 질문에 다른 종목명(예: Apple, TSLA 등)이 포함되어 있다면 그 질문에 명시된 종목을 우선하세요.
-"""
+            system_content += f"\n\n[CONTEXT_INFO]\n- 현재 사용자는 {context_ticker} 상세 페이지를 보고 있습니다."
         
         system_content += FORMATTING_RULES
-        
         messages = [{"role": "system", "content": system_content}]
         
-        # 3. 최근 대화 기록 로드
+        # 3. 최근 대화 기록 로드 (최대 4개로 확대하여 맥락 유지)
         db_history = self.db.query(models.ChatHistory)\
                        .filter(models.ChatHistory.user_id == current_user.id)\
                        .order_by(models.ChatHistory.created_at.desc())\
-                       .limit(2)\
+                       .limit(4)\
                        .all()
         
         for msg in reversed(db_history):
             messages.append({"role": msg.role, "content": msg.content})
         
-        messages.append({"role": "user", "content": user_message})
+        # 4. [CRITICAL] 최종 컨텍스트 강조 주입
+        # 이전 대화가 무엇이었든 현재 페이지 종목을 명시적으로 재강조
+        final_message = user_message
+        if context_ticker:
+            final_message = f"[SYSTEM_REMINDER: 현재 사용자가 보고 있는 {context_ticker} 종목을 최우선 분석하세요]\n{user_message}"
+            
+        messages.append({"role": "user", "content": final_message})
         return messages
 
     def _analyze_intents(self, text: str) -> List[str]:

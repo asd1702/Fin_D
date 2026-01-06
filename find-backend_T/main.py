@@ -12,11 +12,10 @@ load_dotenv()
 # 1. 분리한 라우터 파일을 가져옵니다
 from app.routers import company 
 from app.routers import market
-from app.routers import agent
 from app.routers import auth
+from app.routers import user
 
-from app.database import engine, SessionLocal
-from app import models
+from app.database import engine
 from sqlalchemy import text
 
 
@@ -32,14 +31,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 2. 앱에 company 라우터를 포함시킵니다
-# 이제 company.py에 있는 모든 API가 자동으로 앱에 등록됩니다.
+# 2. 앱에 라우터들을 포함시킵니다
 app.include_router(company.router)
 app.include_router(market.router)
-# app.include_router(agent.router) # [REMOVED] 에이전트 서버(8001)로 분리됨
 app.include_router(auth.router)
+app.include_router(user.router)
+
 # 3. 비동기 API 호출을 위한 클라이언트 (앱 실행 시 생성, 종료 시 해제)
-# 이 클라이언트는 이제 company.py에서도 Depends를 통해 사용할 수 있습니다.
 @app.on_event("startup")
 async def startup_event():
     app.state.httpx_client = httpx.AsyncClient()

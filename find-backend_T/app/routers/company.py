@@ -264,26 +264,12 @@ async def get_analyst_consensus_widget(
     client: httpx.AsyncClient = Depends(get_httpx_client),
     db: Session = Depends(get_db)
 ):
-    # [최적화] 위젯 캐싱 도입 (1시간)
-    cache_key = f"widget_analyst_{ticker}"
-    cache = db.query(models.ApiCache).filter(
-        models.ApiCache.cache_key == cache_key,
-        models.ApiCache.expires_at > datetime.now()
-    ).first()
-    if cache:
-        return cache.data
-
+    # [최적화] 위젯 레벨 캐싱 제거 -> '현재 주가'의 실시간 반영을 위해
+    # 데이터 레벨(fetch_analyst_ratings)에서는 캐시가 작동하므로 성능 저하는 최소화됨
     widget = await fetch_analyst_consensus_card(ticker, db, client)
     if not widget:
         raise HTTPException(status_code=404, detail="위젯 데이터를 생성할 수 없습니다.")
     
-    # 캐시 저장
-    db.merge(models.ApiCache(
-        cache_key=cache_key,
-        data=widget,
-        expires_at=datetime.now() + timedelta(hours=1)
-    ))
-    db.commit()
     return widget
 
 @router.get("/widgets/metrics-grid/{ticker}")

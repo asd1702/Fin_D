@@ -29,37 +29,6 @@ class User(UserBase):
     # DB에서 읽어올 때, 이 객체를 SQLAlchemy 모델처럼 다룰 수 있게 함
     class Config:
         orm_mode = True
-# app/schemas.py
-
-from pydantic import BaseModel, EmailStr
-from typing import Optional, List, Dict, Any
-
-# --- Token (로그인 응답) ---
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-class TokenData(BaseModel):
-    username: Optional[str] = None
-
-# --- User (사용자) ---
-class UserBase(BaseModel):
-    username: str
-    name: str
-    age: int
-    email: EmailStr
-    phone: Optional[str] = None
-    address: Optional[str] = None
-
-class UserCreate(UserBase):
-    password: str # 회원가입 시에는 비밀번호를 받음
-
-class User(UserBase):
-    id: int
-
-    # DB에서 읽어올 때, 이 객체를 SQLAlchemy 모델처럼 다룰 수 있게 함
-    class Config:
-        orm_mode = True
 
 
 class ChatRequest(BaseModel):
@@ -93,3 +62,7 @@ class MetricItem(BaseModel):
 class MetricsGridWidget(BaseModel):
     type: str = "metrics_grid"
     items: List[MetricItem]
+
+class FavoriteStatus(BaseModel):
+    is_favorite: bool
+    ticker: str

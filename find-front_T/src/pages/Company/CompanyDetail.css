@@ -192,6 +192,10 @@
   transform: scale(0.95);
 }
 
+.company-favorite.active {
+  color: #fbbf24;
+}
+
 .company-sub-nav {
   display: flex;
   gap: 28px;
@@ -824,6 +828,7 @@
     opacity: 0;
     transform: translateX(-20px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);

@@ -2,7 +2,7 @@
 
 from sqlalchemy import (
     Column, Integer, String, TIMESTAMP, TEXT, ForeignKey, 
-    DECIMAL, BIGINT, JSON, Date, UniqueConstraint, DateTime
+    DECIMAL, BIGINT, JSON, Date, UniqueConstraint, DateTime, Index
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -26,6 +26,7 @@ class User(Base):
 
 
     chat_history = relationship("ChatHistory", back_populates="owner")
+    favorites = relationship("UserFavorite", back_populates="owner", cascade="all, delete-orphan")
 
 # --- 2. AI 대화 기록 ---
 class ChatHistory(Base):
@@ -38,6 +39,21 @@ class ChatHistory(Base):
     created_at = Column(TIMESTAMP, server_default=func.now())
 
     owner = relationship("User", back_populates="chat_history")
+
+# --- 11. 기업 즐겨찾기 ---
+class UserFavorite(Base):
+    __tablename__ = "user_favorites"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    ticker = Column(String(20), ForeignKey("company_profiles.ticker", ondelete="CASCADE"), nullable=False)
+    created_at = Column(TIMESTAMP, server_default=func.now())
+
+    owner = relationship("User", back_populates="favorites")
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'ticker', name='unique_user_favorite'),
+    )
 
 # --- 3. FMP 기업 정보 ---
 class CompanyProfile(Base):
@@ -86,6 +102,7 @@ class CompanyIncomeStatement(Base):
 
     __table_args__ = (
         UniqueConstraint('ticker', 'period', 'report_date', name='_cis_ticker_period_date_uc'),
+        Index('ix_income_ticker_date', 'ticker', 'report_date'),
     )
 
 
@@ -117,6 +134,7 @@ class CompanyBalanceSheet(Base):
 
     __table_args__ = (
         UniqueConstraint('ticker', 'period', 'report_date', name='_cbs_ticker_period_date_uc'),
+        Index('ix_balance_ticker_date', 'ticker', 'report_date'),
     )
 
 
@@ -144,6 +162,7 @@ class CompanyCashFlow(Base):
 
     __table_args__ = (
         UniqueConstraint('ticker', 'period', 'report_date', name='_ccf_ticker_period_date_uc'),
+        Index('ix_cashflow_ticker_date', 'ticker', 'report_date'),
     )
 
 
@@ -179,6 +198,7 @@ class CompanyKeyMetrics(Base):
 
     __table_args__ = (
         UniqueConstraint('ticker', 'period', 'report_date', name='_ckm_ticker_period_date_uc'),
+        Index('ix_metrics_ticker_date', 'ticker', 'report_date'),
     )
 
 # --- 5. 뉴스 (AI 사전 요약) ---
