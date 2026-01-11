@@ -32,19 +32,12 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({ currentDate, onN
 
       <div className="header-controls">
         <input type="text" placeholder="Search" className="search-bar" />
-        
+
         <div className="nav-group">
           <button onClick={onPrev} className="nav-btn">←</button>
           <button onClick={onToday} className="nav-btn" style={{ fontSize: '12px', fontWeight: 500 }}>Today</button>
           <button onClick={onNext} className="nav-btn">→</button>
         </div>
-
-        <select className="view-select">
-          <option>Month View</option>
-          <option>Week View</option>
-        </select>
-
-        <button className="add-event-btn">+ Add Event</button>
       </div>
     </div>
   );

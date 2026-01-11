@@ -14,9 +14,18 @@ from app.routers import company
 from app.routers import market
 from app.routers import auth
 from app.routers import user
+from app.routers import user_data
+from app.routers import news
+from app.routers import notification
 
 from app.database import engine
 from sqlalchemy import text
+
+# APScheduler 설정
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from app.services.news_scheduler import fetch_and_translate_favorite_news
+
+scheduler = AsyncIOScheduler()
 
 
 # FastAPI 앱 객체 생성
@@ -36,6 +45,9 @@ app.include_router(company.router)
 app.include_router(market.router)
 app.include_router(auth.router)
 app.include_router(user.router)
+app.include_router(user_data.router)
+app.include_router(news.router)
+app.include_router(notification.router)
 
 # 3. 비동기 API 호출을 위한 클라이언트 (앱 실행 시 생성, 종료 시 해제)
 @app.on_event("startup")
@@ -52,10 +64,77 @@ async def startup_event():
     except Exception as e:
         print(f"❌ 데이터베이스 연결 실패: {str(e)}")
         raise  # 연결 실패 시 앱 시작 중단
+    
+    # 뉴스 스케줄러 등록 (매일 오전 6시)
+    scheduler.add_job(
+        fetch_and_translate_favorite_news,
+        'cron',
+        hour=6,
+        minute=0,
+        id='news_translation_job',
+        replace_existing=True
+    )
+    
+    # 알림 스케줄러 등록
+    from app.services.notification_scheduler import (
+        create_calendar_reminder_notifications,
+        check_economic_indicators
+    )
+    
+    # 캘린더 일정 알림: 매일 오전 9시
+    scheduler.add_job(
+        create_calendar_reminder_notifications,
+        'cron',
+        hour=9,
+        minute=0,
+        id='calendar_reminder_job',
+        replace_existing=True
+    )
+    
+    # 경제지표 알림: 21:30, 22:30, 03:00 (KST)
+    scheduler.add_job(
+        check_economic_indicators,
+        'cron',
+        hour=21,
+        minute=30,
+        id='economic_alert_2130',
+        replace_existing=True
+    )
+    scheduler.add_job(
+        check_economic_indicators,
+        'cron',
+        hour=22,
+        minute=30,
+        id='economic_alert_2230',
+        replace_existing=True
+    )
+    scheduler.add_job(
+        check_economic_indicators,
+        'cron',
+        hour=3,
+        minute=0,
+        id='economic_alert_0300',
+        replace_existing=True
+    )
+    
+    scheduler.start()
+    print("📰 뉴스 스케줄러 시작: 매일 오전 6시에 실행")
+    print("🔔 알림 스케줄러 시작: 캘린더(09:00), 경제지표(21:30, 22:30, 03:00)")
+    
+    # 서버 시작 시 한 번 실행 (개발 환경에서는 비활성화)
+    # 수동 실행: POST /api/v1/news/trigger-translation
+    run_on_startup = os.getenv("RUN_NEWS_ON_STARTUP", "false").lower() == "true"
+    if run_on_startup:
+        import asyncio
+        asyncio.create_task(fetch_and_translate_favorite_news())
+        print("📰 서버 시작 시 뉴스 수집 및 번역 실행 중...")
+    else:
+        print("📰 뉴스 자동 수집 비활성화 (수동: POST /api/v1/news/trigger-translation)")
 
 @app.on_event("shutdown")
 async def shutdown_event():
     await app.state.httpx_client.aclose()
+    scheduler.shutdown()
     print("FastAPI 앱이 종료됩니다.")
 
 

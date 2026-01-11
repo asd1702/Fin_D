@@ -26,8 +26,15 @@
 }
 
 @keyframes modalFadeIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .modal-header {
@@ -76,10 +83,29 @@
   border-left: 4px solid #555;
 }
 
-.modal-event-item.earnings { border-left-color: #4caf50; } /* Green for earnings usually implies money, but user asked for random. We'll stick to a base color here and override in inline styles if needed, or just keep distinct types */
-.modal-event-item.economic { border-left-color: #ff5252; background-color: rgba(255, 82, 82, 0.1); } /* Red for Fed */
-.modal-event-item.conference { border-left-color: #2196f3; }
-.modal-event-item.dividend { border-left-color: #ff9800; }
+.modal-event-item.earnings {
+  border-left-color: #4caf50;
+}
+
+/* Green for earnings usually implies money, but user asked for random. We'll stick to a base color here and override in inline styles if needed, or just keep distinct types */
+.modal-event-item.economic {
+  border-left-color: #ff5252;
+  background-color: rgba(255, 82, 82, 0.1);
+}
+
+/* Red for Fed */
+.modal-event-item.conference {
+  border-left-color: #2196f3;
+}
+
+.modal-event-item.dividend {
+  border-left-color: #ff9800;
+}
+
+.modal-event-item.personal {
+  border-left-color: #9c27b0;
+  background-color: rgba(156, 39, 176, 0.1);
+}
 
 .event-time {
   font-size: 12px;
@@ -127,4 +153,113 @@
   text-align: center;
   color: #666;
   font-style: italic;
+}
+
+/* 일정 추가 폼 스타일 */
+.add-event-trigger {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin-top: 16px;
+  background-color: #2a2a2a;
+  border: 1px dashed #555;
+  border-radius: 8px;
+  color: #aaa;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-event-trigger:hover {
+  background-color: #333;
+  border-color: #3b82f6;
+  color: #fff;
+}
+
+.add-event-form {
+  margin-top: 16px;
+  padding: 16px;
+  background-color: #2a2a2a;
+  border-radius: 8px;
+  border: 1px solid #444;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: #ccc;
+  font-weight: 500;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 10px 12px;
+  background-color: #1a1a1a;
+  border: 1px solid #444;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.cancel-btn,
+.submit-btn {
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancel-btn {
+  background-color: transparent;
+  border: 1px solid #555;
+  color: #aaa;
+}
+
+.cancel-btn:hover {
+  background-color: #333;
+  color: #fff;
+}
+
+.submit-btn {
+  background-color: #3b82f6;
+  border: none;
+  color: #fff;
+}
+
+.submit-btn:hover:not(:disabled) {
+  background-color: #2563eb;
+}
+
+.submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

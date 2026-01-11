@@ -157,3 +157,50 @@ async def fetch_and_store_latest_news(db: Session, client: httpx.AsyncClient):
         db.rollback()
         print(f"[Celery Task] 뉴스 수집 중 에러: {e}") 
 
+
+async def fetch_news_for_tickers(tickers: list[str], db: Session, client: httpx.AsyncClient):
+    """
+    여러 티커의 뉴스를 FMP에서 가져와 DB에 저장합니다.
+    """
+    import datetime
+    
+    if not tickers:
+        return
+
+    ticker_str = ",".join(tickers)
+    # FMP limit per request
+    url = f"{FMP_BASE_URL}/stock_news?tickers={ticker_str}&limit=50&apikey={FMP_API_KEY}"
+    print(f"[News Service] Batch Fetching for: {ticker_str}")
+    
+    try:
+        response = await client.get(url)
+        response.raise_for_status()
+        data = response.json()
+        
+        count = 0
+        for item in data:
+            url = item.get("url")
+            # 중복 체크
+            exists = db.query(models.NewsArticle).filter_by(url=url).first()
+            if not exists:
+                title = item.get("title") or ""
+                site = item.get("site", "Unknown")
+                text = item.get("text") or ""
+                enriched_summary = f"[{site}] {text}"
+                
+                new_article = models.NewsArticle(
+                    url=url,
+                    title=title,
+                    publishedDate=item.get("publishedDate"),
+                    symbols=item.get("symbol"), # API returns 'symbol' (singular) for stock_news
+                    summary=enriched_summary
+                )
+                db.add(new_article)
+                count += 1
+        
+        db.commit()
+        print(f"[News Service] {count} new articles saved.")
+        
+    except Exception as e:
+        db.rollback()
+        print(f"[News Service] Batch fetch failed: {e}")

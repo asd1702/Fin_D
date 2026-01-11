@@ -27,8 +27,9 @@ class User(UserBase):
     id: int
 
     # DB에서 읽어올 때, 이 객체를 SQLAlchemy 모델처럼 다룰 수 있게 함
+
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class ChatRequest(BaseModel):
@@ -66,3 +67,66 @@ class MetricsGridWidget(BaseModel):
 class FavoriteStatus(BaseModel):
     is_favorite: bool
     ticker: str
+from datetime import datetime, date
+
+class UserFavoriteCreate(BaseModel):
+    ticker: str
+
+class UserFavoriteResponse(BaseModel):
+    id: int
+    user_id: int
+    ticker: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class UserEventCreate(BaseModel):
+    title: str
+    date: date
+    time: Optional[str] = None
+    ticker: Optional[str] = None
+    description: Optional[str] = None
+    event_type: str = "personal"
+
+class UserEventResponse(UserEventCreate):
+    id: int
+    user_id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class NewsItem(BaseModel):
+    id: int
+    title: str
+    summary: Optional[str] = None
+    url: str
+    publishedDate: datetime
+    ticker: Optional[str] = None
+    logo_url: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+# --- Notification (알림) ---
+class NotificationCreate(BaseModel):
+    title: str
+    content: Optional[str] = None
+    notification_type: str  # "calendar" 또는 "economic"
+    related_event_id: Optional[int] = None
+    economic_event: Optional[str] = None
+
+class NotificationResponse(BaseModel):
+    id: int
+    user_id: int
+    title: str
+    content: Optional[str] = None
+    notification_type: str
+    is_read: int
+    related_event_id: Optional[int] = None
+    economic_event: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
