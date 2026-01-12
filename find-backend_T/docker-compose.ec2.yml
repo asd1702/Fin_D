@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  find-backend:
+    image: asd1702/find-backend:latest
+    container_name: find-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - RDS_HOST=${RDS_HOST}
+      - RDS_PORT=${RDS_PORT}
+      - RDS_USER=${RDS_USER}
+      - RDS_PASSWORD=${RDS_PASSWORD}
+      - RDS_DB_NAME=${RDS_DB_NAME}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - FMP_API_KEY=${FMP_API_KEY}
+      - TWELVE_DATA_API_KEY=${TWELVE_DATA_API_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - ALGORITHM=${ALGORITHM}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  find-agent:
+    image: asd1702/find-backend:latest
+    container_name: find-agent
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
+    environment:
+      - RDS_HOST=${RDS_HOST}
+      - RDS_PORT=${RDS_PORT}
+      - RDS_USER=${RDS_USER}
+      - RDS_PASSWORD=${RDS_PASSWORD}
+      - RDS_DB_NAME=${RDS_DB_NAME}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - FMP_API_KEY=${FMP_API_KEY}
+      - TWELVE_DATA_API_KEY=${TWELVE_DATA_API_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - ALGORITHM=${ALGORITHM}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
+    command: ["uvicorn", "agent_main:app", "--host", "0.0.0.0", "--port", "8001"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
