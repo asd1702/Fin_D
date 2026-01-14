@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { FinancialTableWidget } from '@/types'
+import type { FinancialTableWidget, FinancialTableRow } from '@/types'
 import './Widgets.css'
 
 interface Props {
@@ -67,7 +67,7 @@ export default function FinancialTable({ widget }: Props) {
     return formatNumber(value)
   }
 
-  const renderRow = (row: typeof widget.rows[0], level: number = 0) => {
+  const renderRow = (row: FinancialTableRow, level: number = 0): JSX.Element => {
     const hasChildren = row.children && row.children.length > 0
     const isExpanded = expandedRows.has(row.id)
 
