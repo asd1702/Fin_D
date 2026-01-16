@@ -8,17 +8,15 @@ import config from './config';
 
 export function createApp(): Application {
   const app: Application = express();
-  
+
   // ==================== Security Middlewares ====================
-  
+
   // Helmet: 보안 HTTP 헤더 설정
   app.use(helmet());
 
-  // CORS: 화이트리스트 기반 (개발 시 localhost 허용)
+  // CORS: 모든 Origin 허용 (디버깅 위해 개방)
   app.use(cors({
-    origin: config.isDevelopment 
-      ? true  // 개발 환경: 모든 origin 허용
-      : config.CORS_ORIGIN,  // 프로덕션: 화이트리스트만
+    origin: true,
     credentials: true,
   }));
 
@@ -27,11 +25,11 @@ export function createApp(): Application {
   app.use(express.urlencoded({ extended: true }));
 
   // ==================== Health Check ====================
-  
+
   // Liveness: 프로세스가 살아있는지
   app.get('/', (req: Request, res: Response) => {
-    res.status(200).json({ 
-      status: 'ok', 
+    res.status(200).json({
+      status: 'ok',
       message: 'Fin-Q Chart Server is running',
       version: '2.0.0'
     });

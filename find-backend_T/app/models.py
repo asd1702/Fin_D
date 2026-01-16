@@ -27,6 +27,8 @@ class User(Base):
 
     chat_history = relationship("ChatHistory", back_populates="owner")
     favorites = relationship("UserFavorite", back_populates="owner", cascade="all, delete-orphan")
+    events = relationship("UserEvent", back_populates="owner", cascade="all, delete-orphan")
+    notifications = relationship("Notification", back_populates="owner", cascade="all, delete-orphan")
 
 # --- 2. AI 대화 기록 ---
 class ChatHistory(Base):
@@ -50,6 +52,7 @@ class UserFavorite(Base):
     created_at = Column(TIMESTAMP, server_default=func.now())
 
     owner = relationship("User", back_populates="favorites")
+    company = relationship("CompanyProfile")
 
     __table_args__ = (
         UniqueConstraint('user_id', 'ticker', name='unique_user_favorite'),
@@ -211,6 +214,7 @@ class NewsArticle(Base):
     publishedDate = Column(TIMESTAMP, nullable=False)
     symbols = Column(TEXT)
     summary = Column(TEXT) # FMP가 제공한 요약본
+    news_type = Column(String(20), default="company", index=True)  # "company" 또는 "general"
 
 # --- 6. Twelve Data 차트/지수 ---
 class MarketTimeSeries(Base):
@@ -305,4 +309,40 @@ class InsiderTrade(Base):
 
     __table_args__ = (
         UniqueConstraint('ticker', 'transaction_date', 'insider_name', 'transaction_type', 'volume', name='_insider_uc'),
+    )
+
+# --- 12. 사용자 일정/이벤트 ---
+class UserEvent(Base):
+    __tablename__ = "user_events"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    title = Column(String(255), nullable=False)
+    date = Column(Date, nullable=False)
+    time = Column(String(50))
+    ticker = Column(String(20), ForeignKey("company_profiles.ticker", ondelete="SET NULL"))
+    description = Column(TEXT)
+    event_type = Column(String(50), default="personal")
+    created_at = Column(TIMESTAMP, server_default=func.now())
+
+    owner = relationship("User", back_populates="events")
+
+# --- 13. 알림 ---
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    title = Column(String(255), nullable=False)
+    content = Column(TEXT)
+    notification_type = Column(String(50), nullable=False)  # "calendar" 또는 "economic"
+    is_read = Column(Integer, default=0)  # 0: 안읽음, 1: 읽음
+    related_event_id = Column(Integer)  # 관련 일정 ID (calendar 타입일 때)
+    economic_event = Column(String(100))  # 경제지표 이름 (economic 타입일 때)
+    created_at = Column(TIMESTAMP, server_default=func.now())
+
+    owner = relationship("User", back_populates="notifications")
+
+    __table_args__ = (
+        Index('ix_notifications_user_created', 'user_id', 'created_at'),
     )

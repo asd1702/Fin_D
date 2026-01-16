@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  find-chart:
+    image: asd1702/find-chart:latest
+    container_name: find-chart
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      - PORT=8080
+      - NODE_ENV=production
+      # DATABASE_URL and TWELVE_DATA_API_KEY should be in .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

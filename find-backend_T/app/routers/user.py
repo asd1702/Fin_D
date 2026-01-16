@@ -65,13 +65,3 @@ def toggle_favorite(
         db.commit()
         return schemas.FavoriteStatus(is_favorite=True, ticker=ticker)
 
-@router.get("/favorites", response_model=List[str])
-def get_all_favorites(
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """현재 사용자의 모든 즐겨찾기 티커 목록을 가져옵니다."""
-    favorites = db.query(models.UserFavorite.ticker).filter(
-        models.UserFavorite.user_id == current_user.id
-    ).all()
-    return [f.ticker for f in favorites]
