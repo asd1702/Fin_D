@@ -81,11 +81,10 @@ async def startup_event():
         check_economic_indicators
     )
     
-    # 캘린더 일정 알림: 매일 오전 9시
+    # 캘린더 일정 알림: 매 시간 정각 (늦게 등록된 일정도 체크)
     scheduler.add_job(
         create_calendar_reminder_notifications,
         'cron',
-        hour=9,
         minute=0,
         id='calendar_reminder_job',
         replace_existing=True

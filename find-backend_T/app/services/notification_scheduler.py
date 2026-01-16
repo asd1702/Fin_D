@@ -117,13 +117,14 @@ async def check_economic_indicators():
             e for e in events 
             if is_major_indicator(e.get("event", "")) 
             and e.get("actual") is not None
+            and e.get("country") == "US"  # 미국 지표만 알림
         ]
         
         if not major_events:
-            print("[NotificationScheduler] 새로운 주요 경제지표 발표 없음")
+            print("[NotificationScheduler] 새로운 주요 경제지표(US) 발표 없음")
             return
         
-        print(f"[NotificationScheduler] 주요 경제지표 {len(major_events)}개 발견")
+        print(f"[NotificationScheduler] 주요 경제지표(US) {len(major_events)}개 발견")
         
         # 모든 사용자 조회 (알림 대상)
         users = db.query(models.User).all()
@@ -131,6 +132,7 @@ async def check_economic_indicators():
         for event in major_events:
             event_name = event.get("event", "Unknown")
             event_date = event.get("date", "")
+            country = event.get("country", "US")
             actual = event.get("actual")
             estimate = event.get("estimate")
             previous = event.get("previous")
@@ -145,6 +147,7 @@ async def check_economic_indicators():
             # AI 인사이트 생성
             insight = await generate_economic_insight(
                 event_name=event_name,
+                country=country,
                 actual=str(actual) if actual else None,
                 estimate=str(estimate) if estimate else None,
                 previous=str(previous) if previous else None,

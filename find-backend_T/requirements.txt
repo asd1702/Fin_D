@@ -35,3 +35,6 @@ typing-inspection==0.4.2
 typing_extensions==4.15.0
 uvicorn==0.38.0
 APScheduler==3.10.4
+pytest
+pytest-asyncio
+flake8

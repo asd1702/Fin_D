@@ -58,7 +58,8 @@ async def generate_economic_insight(
     actual: Optional[str],
     estimate: Optional[str],
     previous: Optional[str],
-    date: str
+    date: str,
+    country: str = "US"
 ) -> Dict[str, str]:
     """
     경제지표에 대한 AI 인사이트 생성
@@ -77,7 +78,8 @@ async def generate_economic_insight(
 이전값: {previous or '없음'}
 """
     
-    prompt = f"""다음 미국 경제지표 발표에 대해 간결하고 전문적인 분석을 제공해주세요.
+    prompt = f"""다음 {country} 경제지표 발표에 대해 간결하고 전문적인 분석을 제공해주세요.
+    (발표일의 연도해석에 주의하세요. FMP API의 release date가 {date}라면 해당 발표는 보통 직전 월의 데이터일 가능성이 높습니다. 미래 시점(예: 2026년 12월)으로 잘못 해석하지 마세요.)
 
 {data_summary}
 

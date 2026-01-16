@@ -10,7 +10,11 @@ RUN apt-get update && apt-get install -y \
     default-libmysqlclient-dev \
     pkg-config \
     curl \
+    tzdata \
     && rm -rf /var/lib/apt/lists/*
+
+# 타임존 설정 (한국 시간)
+ENV TZ=Asia/Seoul
 
 # Python 의존성 설치
 COPY requirements.txt .

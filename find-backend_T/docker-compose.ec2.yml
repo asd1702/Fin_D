@@ -20,6 +20,7 @@ services:
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - ALGORITHM=${ALGORITHM}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
+      - TZ=Asia/Seoul
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -47,6 +48,7 @@ services:
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - ALGORITHM=${ALGORITHM}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
+      - TZ=Asia/Seoul
     command: ["uvicorn", "agent_main:app", "--host", "0.0.0.0", "--port", "8001"]
     restart: unless-stopped
     healthcheck:
