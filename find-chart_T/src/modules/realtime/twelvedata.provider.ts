@@ -12,18 +12,30 @@ SYMBOLS.forEach((s) => candleMakers.set(s, new CandleMaker()));
 
 let tdWs: WebSocket | null = null;
 
+// Heartbeat state
+let lastMessageTime: number = Date.now();
+let heartbeatInterval: NodeJS.Timeout | null = null;
+const HEARTBEAT_CHECK_MS = 30000; // 30초마다 검사
+const DISCONNECT_TIMEOUT_MS = 60000; // 60초간 데이터 없으면 재연결
+
 /**
  * TwelveData WebSocket 연결
  */
 export function connectToTwelveData(): void {
+  // 기존 연결 정리
+  cleanup();
+
   logger.info('TwelveData WebSocket connecting...');
-  
+
   tdWs = new WebSocket(
     `wss://ws.twelvedata.com/v1/quotes/price?apikey=${config.TWELVE_DATA_API_KEY}`
   );
 
   tdWs.on('open', () => {
     logger.info('TwelveData WebSocket connected');
+    lastMessageTime = Date.now();
+    startHeartbeatMonitor(); // 모니터링 시작
+
     tdWs?.send(
       JSON.stringify({
         action: 'subscribe',
@@ -33,6 +45,8 @@ export function connectToTwelveData(): void {
   });
 
   tdWs.on('message', async (data: WebSocket.RawData) => {
+    lastMessageTime = Date.now(); // 활동 갱신
+
     try {
       const text = typeof data === 'string' ? data : data.toString();
       const message = JSON.parse(text);
@@ -44,6 +58,9 @@ export function connectToTwelveData(): void {
         message.timestamp
       ) {
         await handlePriceUpdate(message.symbol, message.price, message.timestamp);
+      } else if (message.event === 'heartbeat') {
+        // TwelveData 자체 heartbeat가 있다면 처리 (문서상 명시 없어도 대비)
+        logger.debug('Received explicit heartbeat');
       }
     } catch (err) {
       logger.error('TwelveData message processing error', { error: err });
@@ -56,8 +73,39 @@ export function connectToTwelveData(): void {
 
   tdWs.on('close', (code) => {
     logger.warn('TwelveData WebSocket closed, reconnecting in 5s', { code });
+    cleanup(); // 인터벌 정지
     setTimeout(connectToTwelveData, 5000);
   });
+}
+
+function startHeartbeatMonitor() {
+  if (heartbeatInterval) clearInterval(heartbeatInterval);
+
+  heartbeatInterval = setInterval(() => {
+    const elapsed = Date.now() - lastMessageTime;
+
+    if (elapsed > DISCONNECT_TIMEOUT_MS) {
+      logger.warn('No data received for 60s (Silent Disconnect detected). Reconnecting...', { elapsed });
+      // 강제 재연결 (기존 소켓 close -> close 이벤트 핸들러가 재연결 트리거)
+      if (tdWs) {
+        tdWs.terminate(); // 즉시 종료
+      } else {
+        connectToTwelveData();
+      }
+    }
+  }, HEARTBEAT_CHECK_MS);
+}
+
+function cleanup() {
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+  }
+  if (tdWs) {
+    tdWs.removeAllListeners(); // 리스너 제거로 중복 실행 방지
+    tdWs.close();
+    tdWs = null;
+  }
 }
 
 /**
@@ -97,8 +145,5 @@ async function handlePriceUpdate(
  * TwelveData 연결 해제
  */
 export function disconnectFromTwelveData(): void {
-  if (tdWs) {
-    tdWs.close();
-    tdWs = null;
-  }
+  cleanup();
 }
