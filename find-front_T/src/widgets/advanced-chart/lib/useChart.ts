@@ -138,6 +138,14 @@ export const useChart = (
       candlestickSeriesRef.current.setData(data.map(d => ({ ...d.candle, time: d.candle.time as Time })));
       volumeSeriesRef.current.setData(data.map(d => ({ ...d.volume, time: d.volume.time as Time })));
       
+      // 초기 로드 시 적절한 확대 수준 설정 (최근 100개 캔들만 표시)
+      if (chartApiRef.current && data.length > 100) {
+        const barsToShow = 100;
+        const from = data.length - barsToShow;
+        const to = data.length - 1;
+        chartApiRef.current.timeScale().setVisibleLogicalRange({ from, to });
+      }
+      
       isChartReadyRef.current = true;
       renderedDataLengthRef.current = data.length;
       currentPropsTimeframeRef.current = timeframe; // 변경된 타임프레임 반영
@@ -168,6 +176,22 @@ export const useChart = (
       for (let i = Math.max(0, currentLength - 1); i < newLength; i++) {
         const item = data[i];
         try {
+          // 시간 순서 및 중복 검증
+          if (i > 0) {
+            const prevTime = data[i - 1].candle.time as number;
+            const currTime = item.candle.time as number;
+            if (currTime <= prevTime) {
+              console.warn('Time order/duplicate violation detected, forcing full refresh:', {
+                prevTime,
+                currTime,
+                index: i
+              });
+              candlestickSeriesRef.current.setData(data.map(d => ({ ...d.candle, time: d.candle.time as Time })));
+              volumeSeriesRef.current.setData(data.map(d => ({ ...d.volume, time: d.volume.time as Time })));
+              break;
+            }
+          }
+          
           candlestickSeriesRef.current.update({ ...item.candle, time: item.candle.time as Time });
           volumeSeriesRef.current.update({ ...item.volume, time: item.volume.time as Time });
         } catch (error) {

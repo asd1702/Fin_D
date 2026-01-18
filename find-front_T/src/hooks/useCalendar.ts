@@ -18,14 +18,14 @@ export const useCalendar = (initialDate: Date = new Date(), events: CalendarEven
 
     const calendarDays: CalendarDay[] = [];
 
-    // Previous month's days
+    // Empty cells before the first day of month
     for (let i = 0; i < startDayOfWeek; i++) {
       const date = new Date(year, month, -startDayOfWeek + 1 + i);
       calendarDays.push({
         date,
         isCurrentMonth: false,
-        isToday: isSameDate(date, new Date()),
-        events: getEventsForDate(date, events),
+        isToday: false,
+        events: [],
       });
     }
 
@@ -40,15 +40,15 @@ export const useCalendar = (initialDate: Date = new Date(), events: CalendarEven
       });
     }
 
-    // Next month's days to fill the grid (assuming 6 rows of 7 days = 42 cells usually, or just fill week)
-    const remainingDays = 42 - calendarDays.length;
-    for (let i = 1; i <= remainingDays; i++) {
-      const date = new Date(year, month + 1, i);
+    // Empty cells after the last day of month (fill up to 35 cells for 5 weeks)
+    const remainingDays = 35 - calendarDays.length;
+    for (let i = 0; i < remainingDays; i++) {
+      const date = new Date(year, month + 1, i + 1);
       calendarDays.push({
         date,
         isCurrentMonth: false,
-        isToday: isSameDate(date, new Date()),
-        events: getEventsForDate(date, events),
+        isToday: false,
+        events: [],
       });
     }
 

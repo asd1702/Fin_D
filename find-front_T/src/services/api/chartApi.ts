@@ -46,18 +46,28 @@ export const fetchHistoricalCandles = async (
   const json = await resp.json();
   const data = (json.data || []) as CandleDataDTO[];
 
-  return data.map(d => ({
-    candle: {
-      time: d.time as UTCTimestamp,
-      open: d.open,
-      high: d.high,
-      low: d.low,
-      close: d.close
-    },
-    volume: {
-      time: d.time as UTCTimestamp,
-      value: d.volume,
-      color: d.close >= d.open ? UP_COLOR : DOWN_COLOR
-    }
-  })).sort((a, b) => a.candle.time - b.candle.time);
+  return data
+    .filter(d => {
+      // Null 안전성 검증
+      if (d.open == null || d.high == null || d.low == null || d.close == null || d.volume == null) {
+        console.warn('Invalid candle data filtered out:', d);
+        return false;
+      }
+      return true;
+    })
+    .map(d => ({
+      candle: {
+        time: d.time as UTCTimestamp,
+        open: d.open,
+        high: d.high,
+        low: d.low,
+        close: d.close
+      },
+      volume: {
+        time: d.time as UTCTimestamp,
+        value: d.volume,
+        color: d.close >= d.open ? UP_COLOR : DOWN_COLOR
+      }
+    }))
+    .sort((a, b) => a.candle.time - b.candle.time);
 };

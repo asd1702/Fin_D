@@ -146,38 +146,38 @@ export default function Market() {
               <div className="performance-grid">
                 <div className="performance-item">
                   <span className="performance-label">1주</span>
-                  <span className={`performance-value ${performance.performance['1W'].value >= 0 ? 'up' : 'down'}`}>
-                    {performance.performance['1W'].value >= 0 ? '+' : ''}{performance.performance['1W'].value.toFixed(2)}%
+                  <span className={`performance-value ${(performance.performance['1W']?.value ?? 0) >= 0 ? 'up' : 'down'}`}>
+                    {(performance.performance['1W']?.value ?? 0) >= 0 ? '+' : ''}{(performance.performance['1W']?.value ?? 0).toFixed(2)}%
                   </span>
                 </div>
                 <div className="performance-item">
                   <span className="performance-label">1개월</span>
-                  <span className={`performance-value ${performance.performance['1M'].value >= 0 ? 'up' : 'down'}`}>
-                    {performance.performance['1M'].value >= 0 ? '+' : ''}{performance.performance['1M'].value.toFixed(2)}%
+                  <span className={`performance-value ${(performance.performance['1M']?.value ?? 0) >= 0 ? 'up' : 'down'}`}>
+                    {(performance.performance['1M']?.value ?? 0) >= 0 ? '+' : ''}{(performance.performance['1M']?.value ?? 0).toFixed(2)}%
                   </span>
                 </div>
                 <div className="performance-item">
                   <span className="performance-label">3개월</span>
-                  <span className={`performance-value ${performance.performance['3M'].value >= 0 ? 'up' : 'down'}`}>
-                    {performance.performance['3M'].value >= 0 ? '+' : ''}{performance.performance['3M'].value.toFixed(2)}%
+                  <span className={`performance-value ${(performance.performance['3M']?.value ?? 0) >= 0 ? 'up' : 'down'}`}>
+                    {(performance.performance['3M']?.value ?? 0) >= 0 ? '+' : ''}{(performance.performance['3M']?.value ?? 0).toFixed(2)}%
                   </span>
                 </div>
                 <div className="performance-item">
                   <span className="performance-label">6개월</span>
-                  <span className={`performance-value ${performance.performance['6M'].value >= 0 ? 'up' : 'down'}`}>
-                    {performance.performance['6M'].value >= 0 ? '+' : ''}{performance.performance['6M'].value.toFixed(2)}%
+                  <span className={`performance-value ${(performance.performance['6M']?.value ?? 0) >= 0 ? 'up' : 'down'}`}>
+                    {(performance.performance['6M']?.value ?? 0) >= 0 ? '+' : ''}{(performance.performance['6M']?.value ?? 0).toFixed(2)}%
                   </span>
                 </div>
                 <div className="performance-item">
                   <span className="performance-label">YTD</span>
-                  <span className={`performance-value ${performance.performance.YTD.value >= 0 ? 'up' : 'down'}`}>
-                    {performance.performance.YTD.value >= 0 ? '+' : ''}{performance.performance.YTD.value.toFixed(2)}%
+                  <span className={`performance-value ${(performance.performance.YTD?.value ?? 0) >= 0 ? 'up' : 'down'}`}>
+                    {(performance.performance.YTD?.value ?? 0) >= 0 ? '+' : ''}{(performance.performance.YTD?.value ?? 0).toFixed(2)}%
                   </span>
                 </div>
                 <div className="performance-item">
                   <span className="performance-label">1년</span>
-                  <span className={`performance-value ${performance.performance['1Y'].value >= 0 ? 'up' : 'down'}`}>
-                    {performance.performance['1Y'].value >= 0 ? '+' : ''}{performance.performance['1Y'].value.toFixed(2)}%
+                  <span className={`performance-value ${(performance.performance['1Y']?.value ?? 0) >= 0 ? 'up' : 'down'}`}>
+                    {(performance.performance['1Y']?.value ?? 0) >= 0 ? '+' : ''}{(performance.performance['1Y']?.value ?? 0).toFixed(2)}%
                   </span>
                 </div>
               </div>
@@ -225,7 +225,7 @@ export default function Market() {
                         const date = new Date(2024, 0, Number(day));
                         return date.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' });
                       }}
-                      formatter={(value: number, name: string) => [`${value.toFixed(2)}%`, `${name}년`]}
+                      formatter={(value: number, name: string) => [`${(value ?? 0).toFixed(2)}%`, `${name}년`]}
                     />
                     <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
                     {seasonal.years.map((yearData, idx) => (
@@ -312,8 +312,8 @@ export default function Market() {
             ) : indicators ? (
               <>
                 <div className="indicator-label">평균</div>
-                <div className="indicator-value">{indicators.rsi.value.toFixed(2)}</div>
-                <div className={`indicator-signal ${indicators.rsi.signal}`}>
+                <div className="indicator-value">{(indicators.rsi?.value ?? 0).toFixed(2)}</div>
+                <div className={`indicator-signal ${indicators.rsi?.signal ?? 'neutral'}`}>
                   {indicators.rsi.signal === 'oversold' ? '과매도' : indicators.rsi.signal === 'overbought' ? '과매수' : '중간'}
                 </div>
               </>
@@ -339,8 +339,8 @@ export default function Market() {
             ) : indicators ? (
               <>
                 <div className="indicator-label">평균</div>
-                <div className="indicator-value">{indicators.macd.histogram.toFixed(2)}</div>
-                <div className={`indicator-signal ${indicators.macd.trend}`}>
+                <div className="indicator-value">{(indicators.macd?.histogram ?? 0).toFixed(2)}</div>
+                <div className={`indicator-signal ${indicators.macd?.trend ?? 'neutral'}`}>
                   {indicators.macd.trend === 'bullish' ? '긍정적' : indicators.macd.trend === 'bearish' ? '부정적' : '중립'}
                 </div>
               </>

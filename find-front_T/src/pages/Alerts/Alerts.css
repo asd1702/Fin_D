@@ -1,20 +1,21 @@
 .alerts-page {
-    padding: 24px;
-    padding-left: 32px;
-    padding-right: 32px;
+    padding: 32px 40px;
+    background-color: transparent;
+    /* Assuming main layout handles background */
+    min-height: 100%;
 }
 
 .alerts-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 24px;
+    margin-bottom: 32px;
 }
 
 .alerts-title {
-    font-size: 28px;
+    font-size: 24px;
     font-weight: 700;
-    color: #fff;
+    color: #ffffff;
     margin: 0;
 }
 
@@ -24,206 +25,170 @@
 }
 
 .mark-all-read-btn {
-    padding: 8px 16px;
-    background-color: #2a2a2a;
-    border: 1px solid #444;
-    border-radius: 8px;
-    color: #aaa;
+    padding: 6px 12px;
+    background-color: transparent;
+    border: 1px solid #333;
+    border-radius: 6px;
+    color: #888;
     font-size: 13px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
 }
 
 .mark-all-read-btn:hover {
-    background-color: #333;
     color: #fff;
-    border-color: #6366f1;
+    border-color: #555;
+    background-color: rgba(255, 255, 255, 0.05);
 }
 
-/* 탭 필터 */
+/* Tabs */
 .alerts-tabs {
     display: flex;
-    gap: 8px;
-    margin-bottom: 20px;
+    gap: 16px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid #333;
     padding-bottom: 12px;
-    border-bottom: none;
-    position: relative;
-}
-
-.alerts-tabs::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background-color: #333;
 }
 
 .tab-btn {
-    padding: 8px 16px;
-    background-color: transparent;
+    padding: 8px 12px;
+    background: transparent;
     border: none;
     border-radius: 6px;
-    color: #888;
-    font-size: 14px;
+    color: #666;
+    font-size: 15px;
+    font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
 }
 
 .tab-btn:hover {
-    color: #fff;
-    background-color: #2a2a2a;
+    color: #aaa;
 }
 
 .tab-btn.active {
     color: #fff;
-    background-color: #6366f1;
+    background-color: #2a2a2a;
 }
 
-/* 알림 목록 */
+/* Alerts List */
 .alerts-list {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 16px;
 }
 
+/* Individual Card */
 .alert-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    padding: 20px;
     background-color: #1a1a1a;
-    border: 1px solid #333;
     border-radius: 12px;
-    padding: 16px 20px;
+    border: 1px solid #2a2a2a;
+    transition: all 0.2s ease;
     cursor: pointer;
-    transition: all 0.2s;
-    position: relative;
 }
 
 .alert-card:hover {
-    background-color: #222;
-    border-color: #444;
-    transform: translateY(-1px);
+    background-color: #1f1f1f;
+    border-color: #333;
 }
 
-.alert-card.unread {
-    border-left: 3px solid #6366f1;
+/* Time Pill */
+.alert-time-pill {
+    flex-shrink: 0;
+    background-color: #f1f3f5;
+    /* Light grey/white ish for contrast as in ref image if it was light mode, but for dark mode we adapt */
+    background-color: #333;
+    /* Dark mode pill */
+    color: #eee;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: 8px;
+    min-width: 60px;
+    text-align: center;
+    line-height: 1.2;
 }
 
-.alert-card.unread::before {
-    content: '';
-    position: absolute;
-    top: 16px;
-    right: 16px;
-    width: 8px;
-    height: 8px;
-    background-color: #6366f1;
-    border-radius: 50%;
+.alert-card.unread .alert-time-pill {
+    background-color: #ff6b6b;
+    /* Accent color for unread or specific type */
+    color: #fff;
 }
 
-/* 아이콘 */
-.alert-icon {
-    font-size: 20px;
-    margin-right: 12px;
-}
-
-.alert-header {
+/* Main Content Area */
+.alert-main-content {
+    flex: 1;
     display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.alert-header-row {
+    display: flex;
+    justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 8px;
 }
 
 .alert-title {
-    font-size: 15px;
+    font-size: 17px;
     font-weight: 600;
-    color: #fff;
-    flex: 1;
+    /* Bold title */
+    color: #e0e0e0;
     line-height: 1.4;
-}
-
-.alert-time {
-    font-size: 12px;
-    color: #666;
-    margin-left: 12px;
-    white-space: nowrap;
-}
-
-.alert-content {
-    font-size: 14px;
-    color: #aaa;
-    line-height: 1.5;
-    white-space: pre-wrap;
-}
-
-.alert-content.collapsed {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.alert-type-tag {
-    display: inline-block;
-    font-size: 11px;
-    padding: 3px 8px;
-    border-radius: 4px;
-    margin-top: 10px;
-    text-transform: uppercase;
-}
-
-.alert-type-tag.calendar {
-    background-color: rgba(156, 39, 176, 0.2);
-    color: #ce93d8;
-}
-
-.alert-type-tag.economic {
-    background-color: rgba(255, 152, 0, 0.2);
-    color: #ffb74d;
-}
-
-/* 빈 상태 */
-.alerts-empty {
-    text-align: center;
-    padding: 60px 20px;
-    color: #666;
-}
-
-.alerts-empty-icon {
-    font-size: 48px;
-    margin-bottom: 16px;
-    display: none;
-}
-
-.alerts-empty-text {
-    font-size: 16px;
     margin: 0;
+    margin-bottom: 4px;
 }
 
-/* 로딩 */
-.alerts-loading {
-    text-align: center;
-    padding: 40px;
-    color: #888;
-}
-
-/* 삭제 버튼 */
+/* Delete Button */
 .alert-delete-btn {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    width: 24px;
-    height: 24px;
     background: transparent;
     border: none;
-    color: #666;
-    font-size: 16px;
+    color: #444;
+    font-size: 18px;
     cursor: pointer;
-    opacity: 0;
-    transition: opacity 0.2s;
-}
-
-.alert-card:hover .alert-delete-btn {
-    opacity: 1;
+    padding: 0 4px;
+    line-height: 1;
+    margin-left: 8px;
+    transition: color 0.2s;
 }
 
 .alert-delete-btn:hover {
-    color: #ff5252;
+    color: #ff6b6b;
+}
+
+/* Body Content */
+.alert-body {
+    font-size: 15px;
+    color: #aaa;
+    /* Softer text */
+    line-height: 1.6;
+    word-break: break-word;
+}
+
+/* Footer / Sub Info */
+.alert-footer {
+    margin-top: 4px;
+}
+
+.alert-sub-info {
+    font-size: 13px;
+    color: #666;
+}
+
+/* Empty State */
+.alerts-empty {
+    padding: 60px 0;
+    text-align: center;
+    color: #555;
+    font-size: 16px;
+}
+
+.alerts-loading {
+    padding: 60px;
+    text-align: center;
+    color: #555;
 }

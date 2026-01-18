@@ -62,24 +62,24 @@ export default function Alerts() {
     setExpandedId(expandedId === notification.id ? null : notification.id);
   };
 
-  const formatTime = (dateStr: string) => {
+  // Extract time string like "22:31" if available, or format strictly
+  const getTimeString = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+  };
+
+  // Format for display date/relative time 
+  const getSubInfoString = (dateStr: string) => {
     const date = new Date(dateStr);
     const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffMins < 1) return '방금 전';
-    if (diffMins < 60) return `${diffMins}분 전`;
-    if (diffHours < 24) return `${diffHours}시간 전`;
-    if (diffDays < 7) return `${diffDays}일 전`;
-    return date.toLocaleDateString('ko-KR');
+    if (date.toDateString() === now.toDateString()) {
+      return '오늘';
+    }
+    return date.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' });
   };
 
-  const getIcon = (type: string) => {
-    return type === 'calendar' ? '📅' : '📊';
-  };
+
+
 
   const filteredNotifications = notifications.filter(n => {
     if (activeTab === 'all') return true;
@@ -91,7 +91,7 @@ export default function Alerts() {
   if (loading) {
     return (
       <div className="alerts-page">
-        <div className="alerts-loading">알림을 불러오는 중...</div>
+        <div className="alerts-loading">Loading notifications...</div>
       </div>
     );
   }
@@ -132,8 +132,8 @@ export default function Alerts() {
 
       {filteredNotifications.length === 0 ? (
         <div className="alerts-empty">
-          <div className="alerts-empty-icon">🔔</div>
-          <p className="alerts-empty-text">알림이 없습니다</p>
+          {/* Simple cleaner empty state */}
+          <p className="alerts-empty-text">표시할 알림이 없습니다.</p>
         </div>
       ) : (
         <div className="alerts-list">
@@ -143,28 +143,34 @@ export default function Alerts() {
               className={`alert-card ${notification.is_read === 0 ? 'unread' : ''}`}
               onClick={() => handleCardClick(notification)}
             >
-              <button
-                className="alert-delete-btn"
-                onClick={(e) => handleDelete(notification.id, e)}
-              >
-                ×
-              </button>
-
-              <div className="alert-header">
-                <span className="alert-icon">{getIcon(notification.notification_type)}</span>
-                <span className="alert-title">{notification.title}</span>
-                <span className="alert-time">{formatTime(notification.created_at)}</span>
+              <div className="alert-time-pill">
+                {getTimeString(notification.created_at)}
               </div>
 
-              {notification.content && (
-                <div className={`alert-content ${expandedId !== notification.id ? 'collapsed' : ''}`}>
-                  {notification.content}
+              <div className="alert-main-content">
+                <div className="alert-header-row">
+                  <h3 className="alert-title">{notification.title}</h3>
+                  <button
+                    className="alert-delete-btn"
+                    onClick={(e) => handleDelete(notification.id, e)}
+                    title="Delete"
+                  >
+                    ×
+                  </button>
                 </div>
-              )}
 
-              <span className={`alert-type-tag ${notification.notification_type}`}>
-                {notification.notification_type === 'calendar' ? '일정' : '경제지표'}
-              </span>
+                {notification.content && (
+                  <div className={`alert-body ${expandedId === notification.id ? 'expanded' : ''}`}>
+                    {notification.content}
+                  </div>
+                )}
+
+                <div className="alert-footer">
+                  <span className="alert-sub-info">
+                    {getSubInfoString(notification.created_at)} · {notification.notification_type === 'calendar' ? '일정' : '경제지표'}
+                  </span>
+                </div>
+              </div>
             </div>
           ))}
         </div>

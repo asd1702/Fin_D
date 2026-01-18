@@ -1,13 +1,24 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { toast } from 'react-toastify';
+import { userDataApi } from '../../services/api/userDataApi';
 
 interface CalendarHeaderProps {
   currentDate: Date;
   onNext: () => void;
   onPrev: () => void;
   onToday: () => void;
+  onEventsImported?: () => void;
 }
 
-export const CalendarHeader: React.FC<CalendarHeaderProps> = ({ currentDate, onNext, onPrev, onToday }) => {
+export const CalendarHeader: React.FC<CalendarHeaderProps> = ({ 
+  currentDate, 
+  onNext, 
+  onPrev, 
+  onToday,
+  onEventsImported 
+}) => {
+  const [importing, setImporting] = useState(false);
+
   const monthNames = ["January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
   ];
@@ -17,6 +28,32 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({ currentDate, onN
 
   const formatDate = (date: Date) => {
     return `${monthNames[date.getMonth()].substring(0, 3)} ${date.getDate()}, ${date.getFullYear()}`;
+  };
+
+  const handleImportFavorites = async () => {
+    setImporting(true);
+    try {
+      const result = await userDataApi.importFavoriteEarnings(30);
+      
+      const earningsCount = result.summary.earnings.events_added;
+      const economicCount = result.summary.economic_events.events_added;
+      
+      if (earningsCount === 0 && economicCount === 0) {
+        toast.info('가져올 새로운 일정이 없습니다.');
+      } else {
+        toast.success(result.message);
+      }
+      
+      // 캘린더 리프레시
+      if (onEventsImported) {
+        onEventsImported();
+      }
+    } catch (error) {
+      console.error('Failed to import favorites:', error);
+      toast.error('일정 가져오기 실패');
+    } finally {
+      setImporting(false);
+    }
   };
 
   return (
@@ -31,6 +68,14 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({ currentDate, onN
       </div>
 
       <div className="header-controls">
+        <button 
+          onClick={handleImportFavorites} 
+          className="import-favorites-btn"
+          disabled={importing}
+        >
+          {importing ? '가져오는 중...' : '관심기업 일정 추가'}
+        </button>
+
         <input type="text" placeholder="Search" className="search-bar" />
 
         <div className="nav-group">

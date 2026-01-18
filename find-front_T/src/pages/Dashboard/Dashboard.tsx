@@ -20,7 +20,7 @@ export default function Dashboard() {
         <div id="section-favorites">
           <FavoriteCompanies />
         </div>
-        <div id="section-calendar">
+        <div id="section-calendar" style={{ marginBottom: '24px' }}>
           <Calendar />
         </div>
         <div id="section-economic">

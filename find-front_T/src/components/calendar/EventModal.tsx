@@ -18,6 +18,7 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, date, e
   const [description, setDescription] = useState('');
   const [eventType, setEventType] = useState('personal');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -70,6 +71,27 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, date, e
     }
   };
 
+  const handleDelete = async (eventId: string) => {
+    if (!window.confirm('이 일정을 삭제하시겠습니까?')) {
+      return;
+    }
+
+    setDeletingEventId(eventId);
+    try {
+      await userDataApi.removeEvent(Number(eventId));
+      
+      // Notify parent to refresh events
+      if (onEventAdded) {
+        onEventAdded();
+      }
+    } catch (error) {
+      console.error('Failed to delete event:', error);
+      alert('일정 삭제에 실패했습니다.');
+    } finally {
+      setDeletingEventId(null);
+    }
+  };
+
   const handleClose = () => {
     setIsAddingEvent(false);
     setTitle('');
@@ -94,15 +116,33 @@ export const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, date, e
             <div className="modal-events-list">
               {events.map(event => (
                 <div key={event.id} className={`modal-event-item ${event.type}`}>
-                  <div className="event-time">{event.time}</div>
+                  {event.companySymbol && (
+                    <img 
+                      src={`https://financialmodelingprep.com/images-New-jpg/${event.companySymbol}.jpg`}
+                      alt={event.companySymbol}
+                      className="company-logo"
+                      onError={(e) => {
+                        // 로고 로딩 실패 시 기본 이미지 또는 숨김 처리
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  )}
                   <div className="event-details">
                     <h4 className="event-title">
                       {event.companySymbol && <span className="company-symbol">{event.companySymbol}</span>}
                       {event.title}
                     </h4>
                     {event.description && <p className="event-description">{event.description}</p>}
-                    <span className="event-type-tag">{event.type}</span>
+                    <span className="event-type-tag">{event.type === 'earnings_auto' ? 'EARNINGS' : event.type.toUpperCase()}</span>
                   </div>
+                  <button
+                    className="delete-event-btn"
+                    onClick={() => handleDelete(event.id)}
+                    disabled={deletingEventId === event.id}
+                    title="일정 삭제"
+                  >
+                    {deletingEventId === event.id ? '...' : '×'}
+                  </button>
                 </div>
               ))}
             </div>

@@ -32,26 +32,41 @@ export const AdvancedChartWidget = ({ symbol }: AdvancedChartWidgetProps) => {
         <TimeframeSelector />
       </div>
 
-      {/* 로딩 상태 */}
-      {isLoading && data.length === 0 && (
-        <div className="chart-loading">
-          차트 로딩 중...
-        </div>
-      )}
-
       {/* 메인 차트 */}
       <div 
         ref={chartContainerRef} 
         className="chart-main"
-        style={{ height: `${CHART_HEIGHT}px` }}
+        style={{ 
+          height: `${CHART_HEIGHT}px`,
+          opacity: isLoading && data.length === 0 ? 0.3 : 1,
+          transition: 'opacity 0.15s ease-in-out'
+        }}
       />
       
       {/* 거래량 차트 */}
       <div 
         ref={volumeContainerRef} 
         className="chart-volume"
-        style={{ height: `${VOLUME_CHART_HEIGHT}px` }}
+        style={{ 
+          height: `${VOLUME_CHART_HEIGHT}px`,
+          opacity: isLoading && data.length === 0 ? 0.3 : 1,
+          transition: 'opacity 0.15s ease-in-out'
+        }}
       />
+      
+      {/* 로딩 오버레이 */}
+      {isLoading && data.length === 0 && (
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          color: '#888',
+          fontSize: '14px'
+        }}>
+          차트 로딩 중...
+        </div>
+      )}
     </div>
   );
 };

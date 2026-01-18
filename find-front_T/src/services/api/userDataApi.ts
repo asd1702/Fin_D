@@ -18,6 +18,23 @@ export interface UserEvent {
     event_type: string;
 }
 
+export interface ImportFavoritesResponse {
+    success: boolean;
+    message: string;
+    summary: {
+        earnings: {
+            total_favorites: number;
+            events_added: number;
+            events_skipped: number;
+            failed_tickers: string[];
+        };
+        economic_events: {
+            events_added: number;
+            events_skipped: number;
+        };
+    };
+}
+
 export const userDataApi = {
     // Favorites
     getFavorites: async (): Promise<UserFavorite[]> => {
@@ -48,6 +65,12 @@ export const userDataApi = {
 
     removeEvent: async (eventId: number) => {
         const response = await apiClient.delete(`/user/events/${eventId}`);
+        return response.data;
+    },
+
+    // Import Favorites to Calendar
+    importFavoriteEarnings: async (daysAhead: number = 30): Promise<ImportFavoritesResponse> => {
+        const response = await apiClient.post('/user/events/import-favorites', { days_ahead: daysAhead });
         return response.data;
     }
 };

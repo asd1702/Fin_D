@@ -49,5 +49,12 @@ export type WSMessage =
       timestamp: number;
     }
   | {
+      type: 'gap_filled';
+      symbol: string;
+      count: number;
+      from: number;
+      to: number;
+    }
+  | {
       type: 'reconnected';
     };

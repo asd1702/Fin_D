@@ -77,10 +77,92 @@
 }
 
 .modal-event-item {
-  background-color: #2a2a2a;
+  background-color: #1e2127;
   border-radius: 8px;
   padding: 16px;
-  border-left: 4px solid #555;
+  display: flex;
+  gap: 12px;
+  position: relative;
+}
+
+.modal-event-item .company-logo {
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  object-fit: contain;
+  flex-shrink: 0;
+  background: #1e2127;
+  padding: 4px;
+}
+
+.modal-event-item .event-details {
+  flex: 1;
+}
+
+.modal-event-item .event-title {
+  color: #ffffff;
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.modal-event-item .company-symbol {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  background-color: #2a2d35;
+  border: 1px solid #3a3d45;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffffff;
+  margin-right: 8px;
+}
+
+.modal-event-item .event-description {
+  color: #9ca3af;
+  margin: 4px 0;
+  font-size: 14px;
+}
+
+.modal-event-item .event-type-tag {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.05);
+  color: #9ca3af;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  margin-top: 8px;
+}
+
+.delete-event-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: transparent;
+  border: none;
+  color: #888;
+  font-size: 24px;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.delete-event-btn:hover:not(:disabled) {
+  background: rgba(255, 107, 107, 0.1);
+  color: #ff6b6b;
+}
+
+.delete-event-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .modal-event-item.earnings {
