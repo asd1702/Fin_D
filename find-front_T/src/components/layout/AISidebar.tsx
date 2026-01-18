@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useLocation } from 'react-router-dom'
 import { chatApi } from '@/services/api/chat'
+import { useChatStore } from '@/store/useChatStore'
 import type { ChatMessage } from '@/types'
 import SimpleMarkdown from '../common/SimpleMarkdown'
 import WidgetRenderer from '../widgets/WidgetRenderer'
@@ -174,10 +175,20 @@ interface AISidebarProps {
 }
 
 export default function AISidebar({ isOpen }: AISidebarProps) {
-  const { ticker } = useParams<{ ticker?: string }>()
+  const params = useParams<{ ticker?: string }>()
+  const location = useLocation()
+  const { autoMessage, clearAutoMessage } = useChatStore()
+  
+  // useParams로 티커를 가져오되, 실패하면 location.pathname에서 추출
+  const ticker = params.ticker || (() => {
+    const match = location.pathname.match(/\/company\/([^/]+)/)
+    return match ? match[1] : undefined
+  })()
+  
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [selectedModel, setSelectedModel] = useState<'basic' | 'premium' | 'warren-buffett'>('basic')
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const quickQuestions = [
@@ -185,6 +196,82 @@ export default function AISidebar({ isOpen }: AISidebarProps) {
     { text: '경쟁사랑 ROE 비교해줘', icon: 'chart' },
     { text: '애널리스트 의견은?', icon: 'search' },
   ]
+
+  // 워렌 버핏 모드용 카테고리별 빠른 질문
+  const warrenBuffettCategories = {
+    '비즈니스 품질': [
+      {
+        label: "경제적 해자 🔰",
+        prompt: "From Warren Buffett's investment perspective, analyze {TICKER}'s economic moat — how durable and defensible is it for the next 5–10 years?"
+      },
+      {
+        label: "제품 경쟁력 💡",
+        prompt: "Evaluate {TICKER}'s product and service competitiveness from Buffett's long-term investor view. Is its customer loyalty and pricing power sustainable?"
+      },
+      {
+        label: "브랜드와 고객 충성도 💎",
+        prompt: "Does {TICKER} possess brand power and customer loyalty strong enough to support above-average profitability over the next decade?"
+      }
+    ],
+    '재무 건전성': [
+      {
+        label: "현금 흐름 💵",
+        prompt: "Assess {TICKER}'s cash flow and capital efficiency through Warren Buffett's lens. Does it generate consistent free cash flow that supports growth and shareholder returns?"
+      },
+      {
+        label: "부채 구조 🧱",
+        prompt: "Analyze {TICKER}'s balance sheet strength — is the debt level acceptable for Buffett's quality standards?"
+      },
+      {
+        label: "자사주 매입 정책 🔁",
+        prompt: "How does {TICKER}'s share buyback policy align with Buffett's philosophy of capital allocation and intrinsic value per share?"
+      }
+    ],
+    '가치 평가': [
+      {
+        label: "내재 가치 vs 가격 💸",
+        prompt: "Compare {TICKER}'s intrinsic value with its current market price. From Buffett's viewpoint, is it fairly valued, undervalued, or overvalued?"
+      },
+      {
+        label: "안전마진 🔍",
+        prompt: "Assess whether {TICKER} offers an adequate Margin of Safety in Buffett's terms — is there enough discount to intrinsic value to justify a long-term investment?"
+      },
+      {
+        label: "밸류에이션 추세 📈",
+        prompt: "Review {TICKER}'s valuation trends (PER, PEG, PBR) over the past 5 years. What does Buffett's framework suggest about the current valuation level?"
+      }
+    ],
+    '장기 전망': [
+      {
+        label: "산업 변화 🌍",
+        prompt: "Under Buffett's framework, how might {TICKER} adapt to long-term industry shifts and technological disruption?"
+      },
+      {
+        label: "혁신력과 리스크 🤖",
+        prompt: "Evaluate {TICKER}'s innovation capacity — is it enhancing or eroding its economic moat in the next 5–10 years?"
+      },
+      {
+        label: "장기 보유 매력 ⏳",
+        prompt: "If Buffett had to hold {TICKER} for 10 years, would it meet his criteria of a business worth owning indefinitely?"
+      }
+    ],
+    '리스크 인식': [
+      {
+        label: "핵심 리스크 ⚡",
+        prompt: "Identify the main risks {TICKER} faces today (competition, regulation, technology). How would Buffett interpret and price these risks?"
+      },
+      {
+        label: "시장 변동성 대응 🧭",
+        prompt: "In times of volatility, what would Buffett likely do with {TICKER} — add, hold, or reduce?"
+      },
+      {
+        label: "성장 둔화 위험 🧨",
+        prompt: "How could a slowdown in {TICKER}'s growth affect its long-term valuation and Buffett-style intrinsic value assessment?"
+      }
+    ]
+  }
+
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -194,7 +281,7 @@ export default function AISidebar({ isOpen }: AISidebarProps) {
     scrollToBottom()
   }, [messages])
 
-  const handleSend = async (message?: string) => {
+  const handleSend = useCallback(async (message?: string) => {
     const messageToSend = message || input
     if (!messageToSend.trim() || loading) return
 
@@ -209,8 +296,8 @@ export default function AISidebar({ isOpen }: AISidebarProps) {
     setLoading(true)
 
     try {
-      console.log(`Sending message with context ticker: ${ticker || 'None'}`)
-      const response = await chatApi.sendMessage(messageToSend, ticker)
+      console.log(`Sending message with context ticker: ${ticker || 'None'}, model: ${selectedModel}`)
+      const response = await chatApi.sendMessage(messageToSend, ticker, selectedModel)
 
       console.log('API Response:', response)
       console.log('Widgets:', response.widgets)
@@ -233,12 +320,23 @@ export default function AISidebar({ isOpen }: AISidebarProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [input, loading, ticker, selectedModel])
+
+  // 자동 메시지 처리 (뉴스 탭 등에서 트리거)
+  useEffect(() => {
+    if (isOpen && autoMessage && !loading) {
+      // 약간의 딜레이 후 메시지 전송 (사이드바 애니메이션 완료 대기)
+      const timer = setTimeout(() => {
+        handleSend(autoMessage)
+        clearAutoMessage()
+      }, 300)
+      return () => clearTimeout(timer)
+    }
+  }, [isOpen, autoMessage, loading, handleSend, clearAutoMessage])
 
   const [width, setWidth] = useState(400)
   const [isResizing, setIsResizing] = useState(false)
   const isResizingRef = useRef(false)
-  const [selectedModel, setSelectedModel] = useState<'basic' | 'premium'>('basic')
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false)
   const sidebarRef = useRef<HTMLDivElement>(null)
   const modelSelectorRef = useRef<HTMLDivElement>(null)
@@ -324,7 +422,9 @@ export default function AISidebar({ isOpen }: AISidebarProps) {
             className="ai-model-toggle"
             onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
           >
-            <span className="ai-model-label">Fin:D {selectedModel}</span>
+            <span className="ai-model-label">
+              Fin:D {selectedModel === 'warren-buffett' ? 'Warren Buffett' : selectedModel}
+            </span>
             <svg
               width="12"
               height="12"
@@ -350,6 +450,7 @@ export default function AISidebar({ isOpen }: AISidebarProps) {
                 className={`ai-model-option ${selectedModel === 'basic' ? 'active' : ''}`}
                 onClick={() => {
                   setSelectedModel('basic')
+                  setSelectedCategory(null)
                   setIsModelDropdownOpen(false)
                 }}
               >
@@ -359,10 +460,21 @@ export default function AISidebar({ isOpen }: AISidebarProps) {
                 className={`ai-model-option ${selectedModel === 'premium' ? 'active' : ''}`}
                 onClick={() => {
                   setSelectedModel('premium')
+                  setSelectedCategory(null)
                   setIsModelDropdownOpen(false)
                 }}
               >
                 Fin:D premium
+              </button>
+              <button
+                className={`ai-model-option ${selectedModel === 'warren-buffett' ? 'active' : ''}`}
+                onClick={() => {
+                  setSelectedModel('warren-buffett')
+                  setSelectedCategory(null)
+                  setIsModelDropdownOpen(false)
+                }}
+              >
+                Fin:D Warren Buffett
               </button>
             </div>
           )}
@@ -372,23 +484,85 @@ export default function AISidebar({ isOpen }: AISidebarProps) {
       <div className="ai-sidebar-content">
         <div className="quick-questions">
           <h3 className="quick-questions-title">빠른 질문</h3>
-          <div className="quick-questions-list">
-            {quickQuestions.map((q, idx) => (
-              <button
-                key={idx}
-                className="quick-question-btn"
-                onClick={() => handleSend(q.text)}
-                disabled={loading}
-              >
-                <span className="quick-question-icon">
-                  {q.icon === 'column' && <ColumnIcon />}
-                  {q.icon === 'chart' && <QuickQuestionIcon />}
-                  {q.icon === 'search' && <SearchIcon />}
-                </span>
-                <span>{q.text}</span>
-              </button>
-            ))}
-          </div>
+          {selectedModel === 'warren-buffett' ? (
+            // 워렌 버핏 모드: 카테고리별 질문
+            <div className="quick-questions-list">
+              {selectedCategory === null ? (
+                // 카테고리 목록 표시
+                Object.keys(warrenBuffettCategories).map((category) => {
+                  const questions = warrenBuffettCategories[category as keyof typeof warrenBuffettCategories]
+                  return (
+                    <button
+                      key={category}
+                      className="quick-question-btn"
+                      onClick={() => {
+                        console.log('Category selected:', category, 'Questions:', questions)
+                        setSelectedCategory(category)
+                      }}
+                      disabled={loading || questions.length === 0}
+                    >
+                      <span>{category} {questions.length === 0 ? '(준비 중)' : `(${questions.length})`}</span>
+                    </button>
+                  )
+                })
+              ) : (
+                // 선택된 카테고리의 질문들 표시
+                <>
+                  <button
+                    className="quick-question-btn"
+                    onClick={() => setSelectedCategory(null)}
+                    disabled={loading}
+                    style={{ marginBottom: '8px', opacity: 0.7 }}
+                  >
+                    <span>← 뒤로</span>
+                  </button>
+                  {warrenBuffettCategories[selectedCategory as keyof typeof warrenBuffettCategories].map((question, idx) => {
+                    const promptText = ticker 
+                      ? question.prompt.replace(/{TICKER}/g, ticker)
+                      : question.prompt.replace(/{TICKER}/g, 'this company')
+                    return (
+                      <button
+                        key={idx}
+                        className="quick-question-btn"
+                        onClick={() => {
+                          console.log('Warren Buffett quick question clicked:', {
+                            label: question.label,
+                            promptText,
+                            ticker,
+                            selectedModel
+                          })
+                          handleSend(promptText)
+                          setSelectedCategory(null)
+                        }}
+                        disabled={loading}
+                      >
+                        <span>{question.label}</span>
+                      </button>
+                    )
+                  })}
+                </>
+              )}
+            </div>
+          ) : (
+            // 일반 모드: 기존 빠른 질문
+            <div className="quick-questions-list">
+              {quickQuestions.map((q, idx) => (
+                <button
+                  key={idx}
+                  className="quick-question-btn"
+                  onClick={() => handleSend(q.text)}
+                  disabled={loading}
+                >
+                  <span className="quick-question-icon">
+                    {q.icon === 'column' && <ColumnIcon />}
+                    {q.icon === 'chart' && <QuickQuestionIcon />}
+                    {q.icon === 'search' && <SearchIcon />}
+                  </span>
+                  <span>{q.text}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="ai-chat-messages">

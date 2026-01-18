@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { companyApi } from '@/services/api/company'
 import { searchApi } from '@/services/api/search'
 import { useMarketStore } from '@/store/useMarketStore'
+import { useChatStore } from '@/store/useChatStore'
 import { isUSMarketOpen } from '@/utils/marketHours'
 import type { Company, StockQuote, AnalystCardWidget, MetricsGridWidget, HealthAnalysisWidget } from '@/types'
 import { useAllCompanies } from '@/hooks/useAllCompanies'
@@ -40,6 +41,7 @@ export default function CompanyDetail() {
   const { ticker } = useParams<{ ticker: string }>()
   const navigate = useNavigate()
   const { selectedMarket } = useMarketStore()
+  const { sendAutoMessage } = useChatStore()
   const [company, setCompany] = useState<Company | null>(null)
   const [quote, setQuote] = useState<StockQuote | null>(null)
   const [insiderTrades, setInsiderTrades] = useState<any[]>([])
@@ -610,7 +612,13 @@ export default function CompanyDetail() {
           <button
             key={tab.id}
             className={`company-tab-item ${activeTab === tab.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => {
+              setActiveTab(tab.id)
+              // 뉴스 탭 클릭 시 AI 채팅 열고 자동 메시지 전송
+              if (tab.id === 'news' && ticker) {
+                sendAutoMessage(`${ticker}의 최근 뉴스 알려줘`)
+              }
+            }}
           >
             {tab.label}
           </button>

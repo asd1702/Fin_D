@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # 공통 모듈 임포트
-from app.routers import agent
+from app.routers import agent, market, auth, company, user, user_data, news
 from app.database import engine
 from app.config import OPENAI_API_KEY
 import time
@@ -50,6 +50,13 @@ app.add_middleware(
 
 # 에이전트 전용 라우터만 등록
 app.include_router(agent.router)
+# 프론트엔드에서 필요한 공통 API 라우터도 추가 (market, auth, company, user, user_data, news)
+app.include_router(market.router)
+app.include_router(auth.router)
+app.include_router(company.router)
+app.include_router(user.router)
+app.include_router(user_data.router)
+app.include_router(news.router)
 
 @app.on_event("startup")
 async def startup_event():
