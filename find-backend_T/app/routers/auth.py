@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer # 로그인 폼
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from datetime import timedelta
 
 from app import models, schemas, security
@@ -15,7 +16,18 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 def get_db():
     db = SessionLocal()
     try:
+        # DB 연결 테스트
+        db.execute(text("SELECT 1"))
         yield db
+    except Exception as e:
+        db.close()
+        error_msg = str(e)
+        if "connection" in error_msg.lower() or "connect" in error_msg.lower() or "database" in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"데이터베이스 연결 오류가 발생했습니다: {error_msg}",
+            )
+        raise
     finally:
         db.close()
 
@@ -57,24 +69,41 @@ def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ): 
-
-# 1. 유저 확인
-    user = db.query(models.User).filter(models.User.username == form_data.username).first()
-    
-    # 2. 유저가 없거나, 비밀번호가 틀리면 에러
-    if not user or not security.verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="아이디 또는 비밀번호가 정확하지 않습니다.",
-            headers={"WWW-Authenticate": "Bearer"},
+    try:
+        # 1. 유저 확인
+        user = db.query(models.User).filter(models.User.username == form_data.username).first()
+        
+        # 2. 유저가 없거나, 비밀번호가 틀리면 에러
+        if not user or not security.verify_password(form_data.password, user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="아이디 또는 비밀번호가 정확하지 않습니다.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # 3. 유저가 맞으면 JWT 토큰 생성 (security.py 사용)
+        access_token = security.create_access_token(
+            data={"sub": user.username} # 토큰의 주체(subject)는 유저 이름
         )
-    
-    # 3. 유저가 맞으면 JWT 토큰 생성 (security.py 사용)
-    access_token = security.create_access_token(
-        data={"sub": user.username} # 토큰의 주체(subject)는 유저 이름
-    )
-    
-    return {"access_token": access_token, "token_type": "bearer"}
+        
+        return {"access_token": access_token, "token_type": "bearer"}
+    except HTTPException:
+        # HTTPException은 그대로 전달
+        raise
+    except Exception as e:
+        # DB 연결 오류 등 기타 예외 처리
+        error_msg = str(e)
+        if "connection" in error_msg.lower() or "connect" in error_msg.lower() or "database" in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"데이터베이스 연결 오류가 발생했습니다: {error_msg}",
+            )
+        else:
+            # 예상치 못한 오류
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"로그인 처리 중 오류가 발생했습니다: {error_msg}",
+            )
 
 # "신분증 검사관" 함수 (가장 중요)
 def get_current_user(

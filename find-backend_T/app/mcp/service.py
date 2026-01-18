@@ -14,11 +14,12 @@ async def run_mcp_agent(
     current_user: models.User,
     db: Session,
     httpx_client: httpx.AsyncClient,
-    openai_client: AsyncOpenAI
+    openai_client: AsyncOpenAI,
+    model: str = 'basic'
 ) -> Dict[str, Any]:
     """
     하위 호환성을 위해 유지되는 래퍼 함수입니다.
     실제 로직은 app.mcp.agent.MCPAgent 클래스에서 처리됩니다.
     """
     agent = MCPAgent(db=db, httpx_client=httpx_client, openai_client=openai_client)
-    return await agent.run(user_message, current_user, context_ticker=context_ticker)
+    return await agent.run(user_message, current_user, context_ticker=context_ticker, model=model)

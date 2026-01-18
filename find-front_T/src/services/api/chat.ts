@@ -4,10 +4,11 @@ import type { ChatMessage } from '@/types'
 export const chatApi = {
   // AI 채팅 메시지 전송
   // AI 채팅 메시지 전송
-  sendMessage: async (message: string, ticker?: string): Promise<{ response: string; widgets?: any[] }> => {
+  sendMessage: async (message: string, ticker?: string, model: string = 'basic'): Promise<{ response: string; widgets?: any[] }> => {
     const response = await agentClient.post('/agent/chat', {
       message,
-      context_ticker: ticker
+      context_ticker: ticker,
+      model: model
     })
     return response.data
   },

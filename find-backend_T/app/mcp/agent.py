@@ -13,7 +13,8 @@ from app.config import OPENAI_API_KEY
 from app.database import SessionLocal
 from app.mcp.registry import tools_schema, available_tools
 from app.mcp.prompts import (
-    BASE_PERSONA, CORE_RULES, FORMATTING_RULES, INTENT_PROMPT_MAP
+    BASE_PERSONA, COMMON_RULES, CORE_RULES, FORMATTING_RULES, INTENT_PROMPT_MAP,
+    MODEL_PROMPT_MAP, MODEL_RULES_MAP
 )
 
 class MCPAgent:
@@ -32,16 +33,17 @@ class MCPAgent:
         self.max_turns = 3
         self.tool_timeout = 15.0  # 도구 실행 최대 대기 시간 (초)
 
-    async def run(self, user_message: str, current_user: models.User, context_ticker: Optional[str] = None) -> Dict[str, Any]:
+    async def run(self, user_message: str, current_user: models.User, context_ticker: Optional[str] = None, model: str = 'basic') -> Dict[str, Any]:
         """AI 에이전트의 전체 사이클을 실행합니다."""
         start_time_all = time.time()
         print(f"\n{'='*20} [Chat Request Start] {'='*20}", flush=True)
         print(f"👤 User ({current_user.email}): {user_message[:100]}", flush=True)
         if context_ticker:
             print(f"📍 Context Ticker: {context_ticker}", flush=True)
+        print(f"🤖 Model: {model}", flush=True)
         
         # 1. 메모리 및 컨텍스트 준비
-        messages = self._prepare_messages(user_message, current_user, context_ticker=context_ticker)
+        messages = self._prepare_messages(user_message, current_user, context_ticker=context_ticker, model=model)
         collected_widgets = []
         
         # 2. 사용자 질문 DB 저장
@@ -125,40 +127,57 @@ class MCPAgent:
             print(f"{'='*55}\n", flush=True)
             raise e
 
-    def _prepare_messages(self, user_message: str, current_user: models.User, context_ticker: Optional[str] = None) -> List[Dict[str, Any]]:
+    def _prepare_messages(self, user_message: str, current_user: models.User, context_ticker: Optional[str] = None, model: str = 'basic') -> List[Dict[str, Any]]:
         """사용자 의도에 맞춰 시스템 프롬프트를 동적으로 조립합니다."""
         
         # 1. 의도 분석 (Intent Classification)
         intents = self._analyze_intents(user_message)
         
-        # 2. 시스템 프롬프트 조립 (Prompt Diet)
-        system_content = BASE_PERSONA + CORE_RULES
-        for intent in intents:
-            if intent in INTENT_PROMPT_MAP:
-                system_content += INTENT_PROMPT_MAP[intent]
+        # 2. 모델에 따른 프롬프트 선택
+        persona = MODEL_PROMPT_MAP.get(model, MODEL_PROMPT_MAP['basic'])
+        rules = MODEL_RULES_MAP.get(model, MODEL_RULES_MAP['basic'])
+        
+        # 3. 시스템 프롬프트 조립 (Prompt Diet)
+        # 공통 규칙은 모든 모델에 적용
+        system_content = persona + COMMON_RULES + rules
+        
+        # 워렌 버핏 모드가 아닐 때만 기본 의도별 규칙 적용
+        if model != 'warren-buffett':
+            for intent in intents:
+                if intent in INTENT_PROMPT_MAP:
+                    system_content += INTENT_PROMPT_MAP[intent]
         
         # [NEW] 컨텍스트 티커 정보 주입 (가이드라인)
-        if context_ticker:
+        # 워렌 버핏 모드는 프롬프트에 이미 티커가 포함되어 있으므로 중복 강조 제거
+        if context_ticker and model != 'warren-buffett':
             system_content += f"\n\n[CONTEXT_INFO]\n- 현재 사용자는 {context_ticker} 상세 페이지를 보고 있습니다."
         
-        system_content += FORMATTING_RULES
+        # 워렌 버핏 모드가 아닐 때만 기본 포맷팅 규칙 적용
+        if model != 'warren-buffett':
+            system_content += FORMATTING_RULES
+        
         messages = [{"role": "system", "content": system_content}]
         
-        # 3. 최근 대화 기록 로드 (최대 4개로 확대하여 맥락 유지)
-        db_history = self.db.query(models.ChatHistory)\
-                       .filter(models.ChatHistory.user_id == current_user.id)\
-                       .order_by(models.ChatHistory.created_at.desc())\
-                       .limit(4)\
-                       .all()
-        
-        for msg in reversed(db_history):
-            messages.append({"role": msg.role, "content": msg.content})
+        # 3. 최근 대화 기록 로드 (비활성화됨 - 이전 채팅 참고 안 함)
+        # db_history = self.db.query(models.ChatHistory)\
+        #                .filter(models.ChatHistory.user_id == current_user.id)\
+        #                .order_by(models.ChatHistory.created_at.desc())\
+        #                .limit(4)\
+        #                .all()
+        # 
+        # for msg in reversed(db_history):
+        #     messages.append({"role": msg.role, "content": msg.content})
         
         # 4. [CRITICAL] 최종 컨텍스트 강조 주입
-        # 이전 대화가 무엇이었든 현재 페이지 종목을 명시적으로 재강조
         final_message = user_message
+        
+        # 워렌 버핏 모드: 프롬프트에 티커가 포함되어 있어도 명시적으로 강조
         if context_ticker:
-            final_message = f"[SYSTEM_REMINDER: 현재 사용자가 보고 있는 {context_ticker} 종목을 최우선 분석하세요]\n{user_message}"
+            if model == 'warren-buffett':
+                # 워렌 버핏 모드는 티커를 명시적으로 강조하되, 프롬프트와 중복되지 않도록 간단히
+                final_message = f"[ANALYZE THIS COMPANY: {context_ticker}]\n{user_message}"
+            else:
+                final_message = f"[SYSTEM_REMINDER: 현재 사용자가 보고 있는 {context_ticker} 종목을 최우선 분석하세요]\n{user_message}"
             
         messages.append({"role": "user", "content": final_message})
         return messages

@@ -115,21 +115,36 @@ export function getTimeUntilMarketOpen(): number {
   const dayMap: Record<string, number> = { 'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6 }
   const nyDayNum = dayMap[ny.weekday] ?? 0
 
-  const targetOpenSec = 9 * 3600 + 30 * 60
+  const targetOpenSec = 9 * 3600 + 30 * 60 // 09:30:00
 
+  // 주말인 경우 무조건 다음 월요일로
+  if (nyDayNum === 0) { // 일요일
+    const daysUntilMonday = 1
+    const diffSec = (targetOpenSec - ny.totalSeconds) + (daysUntilMonday * 24 * 3600)
+    return Math.max(0, diffSec * 1000)
+  }
+  if (nyDayNum === 6) { // 토요일
+    const daysUntilMonday = 2
+    const diffSec = (targetOpenSec - ny.totalSeconds) + (daysUntilMonday * 24 * 3600)
+    return Math.max(0, diffSec * 1000)
+  }
+
+  // 평일인 경우
   let daysToAdd = 0
   if (ny.totalSeconds >= targetOpenSec) {
     // 오늘 개장 시간을 이미 지났거나 현재 장 마감 상태임 -> 다음날로
     daysToAdd = 1
+    
+    // 다음날이 주말인지 확인
+    const nextDay = (nyDayNum + daysToAdd) % 7
+    if (nextDay === 6) { // 다음날이 토요일 -> 월요일로 (금요일 오후 4시 이후)
+      daysToAdd = 3 // 금요일 -> 월요일
+    } else if (nextDay === 0) { // 다음날이 일요일 -> 월요일로 (이론적으로 발생하지 않음, 평일이므로)
+      daysToAdd = 2
+    }
   }
 
-  // 주말 처리
-  let checkDay = (nyDayNum + daysToAdd) % 7
-  if (checkDay === 6) daysToAdd += 2 // 토요일 -> 월요일
-  else if (checkDay === 0) daysToAdd += 1 // 일요일 -> 월요일
-
   const diffSec = (targetOpenSec - ny.totalSeconds) + (daysToAdd * 24 * 3600)
-
   return Math.max(0, diffSec * 1000)
 }
 

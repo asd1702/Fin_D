@@ -60,13 +60,15 @@ async def chat_with_agent(
     try:
         # 2. [NEW] 모든 핵심 로직을 mcp.service로 위임
         # service.run_mcp_agent는 이제 {"content": "...", "widgets": [...]} 형태의 dict를 반환합니다.
+        model = request_body.model or 'basic'
         result = await service.run_mcp_agent(
             user_message=message_content,
             context_ticker=request_body.context_ticker,
             current_user=current_user,
             db=db,
             httpx_client=httpx_client,
-            openai_client=openai_client
+            openai_client=openai_client,
+            model=model
         )
         
         # 3. ChatResponse 객체 생성
