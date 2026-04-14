@@ -131,3 +131,12 @@ class NotificationResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+# --- Calendar Import (즐겨찾기 일정 가져오기) ---
+class ImportFavoritesRequest(BaseModel):
+    days_ahead: Optional[int] = 30  # 기본 30일
+
+class ImportFavoritesResponse(BaseModel):
+    success: bool
+    message: str
+    summary: Dict[str, Any]

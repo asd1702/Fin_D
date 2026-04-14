@@ -62,6 +62,7 @@ export const Calendar: React.FC = () => {
         onNext={nextMonth}
         onPrev={prevMonth}
         onToday={goToToday}
+        onEventsImported={fetchEvents}
       />
 
       <div className="calendar-grid">

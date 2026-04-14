@@ -8,6 +8,11 @@ interface CalendarDayProps {
 }
 
 export const CalendarDay: React.FC<CalendarDayProps> = ({ day, onDayClick }) => {
+  // 다른 달의 날짜는 렌더링하지 않음
+  if (!day.isCurrentMonth) {
+    return <div className="calendar-day other-month"></div>;
+  }
+
   // 화면 크기에 따라 다르겠지만, 대략 2~3개 정도만 보여주고 나머지는 +N 처리
   const MAX_VISIBLE_EVENTS = 2;
   const visibleEvents = day.events.slice(0, MAX_VISIBLE_EVENTS);
@@ -15,7 +20,7 @@ export const CalendarDay: React.FC<CalendarDayProps> = ({ day, onDayClick }) => 
 
   return (
     <div 
-      className={`calendar-day ${!day.isCurrentMonth ? 'other-month' : ''} ${day.isToday ? 'today' : ''}`}
+      className={`calendar-day ${day.isToday ? 'today' : ''}`}
       onClick={() => onDayClick(day)}
     >
       <div className="day-number">{day.date.getDate()}</div>

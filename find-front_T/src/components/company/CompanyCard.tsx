@@ -31,7 +31,7 @@ export default function CompanyCard({ company, quote, onClick }: CompanyCardProp
       className="dashboard-card"
       onClick={onClick}
       onMouseMove={handleMouseMove}
-      style={{ 
+      style={{
         cursor: onClick ? 'pointer' : 'default',
         '--brand-color': brandColor,
         '--mouse-x': `${mousePosition.x}px`,
@@ -40,7 +40,7 @@ export default function CompanyCard({ company, quote, onClick }: CompanyCardProp
     >
       {/* 그라디언트 보더 오버레이 */}
       <div className="card-gradient-border"></div>
-      
+
       {/* 스포트라이트 효과 */}
       <div className="card-spotlight"></div>
 
@@ -49,7 +49,7 @@ export default function CompanyCard({ company, quote, onClick }: CompanyCardProp
         <div className="card-logo-wrapper">
           <div className="card-logo-glow"></div>
           <div className="card-logo">
-            <img 
+            <img
               src={logoUrl}
               alt={company.companyName}
               onError={(e) => {
@@ -81,12 +81,12 @@ export default function CompanyCard({ company, quote, onClick }: CompanyCardProp
       {/* 카드 본문: 주가 정보 */}
       {quote ? (
         <div className="card-quote">
-          <div className="card-price">${quote.price.toFixed(2)}</div>
-          <div className={`card-change ${quote.change >= 0 ? 'positive' : 'negative'}`}>
-            <span className="card-change-icon">{quote.change >= 0 ? '▲' : '▼'}</span>
-            <span className="card-change-amount">${Math.abs(quote.change).toFixed(2)}</span>
+          <div className="card-price">${(quote.price ?? 0).toFixed(2)}</div>
+          <div className={`card-change ${(quote.change ?? 0) >= 0 ? 'positive' : 'negative'}`}>
+            <span className="card-change-icon">{(quote.change ?? 0) >= 0 ? '▲' : '▼'}</span>
+            <span className="card-change-amount">${Math.abs(quote.change ?? 0).toFixed(2)}</span>
             <span className="card-change-percent">
-              ({quote.changePercent >= 0 ? '+' : ''}{quote.changePercent.toFixed(2)}%)
+              ({(quote.changePercent ?? 0) >= 0 ? '+' : ''}{(quote.changePercent ?? 0).toFixed(2)}%)
             </span>
           </div>
         </div>

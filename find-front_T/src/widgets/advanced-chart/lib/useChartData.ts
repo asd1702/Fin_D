@@ -37,10 +37,24 @@ export const useChartData = (symbol: string, timeframe: string) => {
       queryClient.setQueryData<ChartData[]>(queryKey, (oldData) => {
         if (!oldData) return oldData;
 
+        // Gap 채워졌을 때 - 데이터 리로드
+        if (msg.type === 'gap_filled') {
+          console.log('Gap filled, reloading chart data...', msg);
+          // 데이터 무효화하여 자동 리페치
+          queryClient.invalidateQueries({ queryKey });
+          return oldData;
+        }
+
         // A. 완성봉 처리
         if (msg.type === 'candle' && msg.timeframe === timeframe) {
           const c = msg.candle;
-          if (!c) return oldData; 
+          if (!c) return oldData;
+          
+          // Null 안전성 검증
+          if (c.open == null || c.high == null || c.low == null || c.close == null || c.volume == null) {
+            console.warn('Invalid candle data received:', c);
+            return oldData;
+          }
 
           const newCandle: ChartData = {
             candle: { time: c.startTime as UTCTimestamp, open: c.open, high: c.high, low: c.low, close: c.close },
@@ -48,12 +62,24 @@ export const useChartData = (symbol: string, timeframe: string) => {
           };
           
           const lastIdx = oldData.length - 1;
-          if (oldData[lastIdx].candle.time === newCandle.candle.time) {
+          const lastCandleTime = oldData[lastIdx].candle.time as number;
+          const newCandleTime = newCandle.candle.time as number;
+          
+          if (lastCandleTime === newCandleTime) {
+            // 같은 시간이면 업데이트
             const newData = [...oldData];
             newData[lastIdx] = newCandle;
             return newData;
-          } else {
+          } else if (lastCandleTime < newCandleTime) {
+            // 새로운 시간이면 추가
             return [...oldData, newCandle];
+          } else {
+            // 시간이 역순이거나 중복인 경우 무시
+            console.warn('Candle time issue, ignoring:', { 
+              newCandleTime, 
+              lastCandleTime 
+            });
+            return oldData;
           }
         }
         
@@ -63,13 +89,23 @@ export const useChartData = (symbol: string, timeframe: string) => {
 
           const price = Number(msg.price);
           const volume = Number(msg.volume || 0);
+          
+          // NaN 검증
+          if (isNaN(price) || isNaN(volume)) {
+            console.warn('Invalid tick data received:', msg);
+            return oldData;
+          }
+          
           const candleStartTime = getStartOfCandle(msg.timestamp, timeframe) as UTCTimestamp;
 
           const newData = [...oldData];
           const lastIndex = newData.length - 1;
           const lastBar = newData[lastIndex];
+          const lastBarTime = lastBar.candle.time as number;
+          const tickCandleTime = candleStartTime as number;
 
-          if ((lastBar.candle.time as number) === (candleStartTime as number)) {
+          if (lastBarTime === tickCandleTime) {
+            // 같은 캔들 시간이면 업데이트
             const updatedCandle = {
               ...lastBar.candle,
               close: price,
@@ -84,12 +120,21 @@ export const useChartData = (symbol: string, timeframe: string) => {
             newData[lastIndex] = { candle: updatedCandle, volume: updatedVolume };
             return newData;
           } 
-          else if ((lastBar.candle.time as number) < (candleStartTime as number)) {
+          else if (lastBarTime < tickCandleTime) {
+            // 새로운 캔들 시작
             const newCandle: ChartData = {
               candle: { time: candleStartTime, open: price, high: price, low: price, close: price },
               volume: { time: candleStartTime, value: volume, color: UP_COLOR }
             };
             return [...newData, newCandle];
+          }
+          // 시간이 역순인 경우 무시
+          else {
+            console.warn('Tick time issue, ignoring:', { 
+              tickCandleTime, 
+              lastBarTime 
+            });
+            return oldData;
           }
         }
         return oldData;
@@ -112,8 +157,14 @@ export const useChartData = (symbol: string, timeframe: string) => {
       if (olderData.length > 0) {
         queryClient.setQueryData<ChartData[]>(queryKey, (old) => {
           if (!old) return olderData;
-          // Merge and de-duplicate by time (ascending arrays, possible boundary overlap)
+          
+          // 1. 병합
           const merged = [...olderData, ...old];
+          
+          // 2. 시간순 정렬 (오름차순)
+          merged.sort((a, b) => (a.candle.time as number) - (b.candle.time as number));
+          
+          // 3. 중복 제거 (정렬 후에 수행)
           const dedup: ChartData[] = [];
           let lastTime: number | undefined;
           for (const item of merged) {
@@ -123,6 +174,7 @@ export const useChartData = (symbol: string, timeframe: string) => {
               lastTime = t;
             }
           }
+          
           return dedup;
         });
       }

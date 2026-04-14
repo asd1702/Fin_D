@@ -591,9 +591,9 @@ export default function CompanyDetail() {
         <div className="company-header-right">
           {quote && (
             <div className="company-price-info">
-              <div className="company-price">${quote.price.toFixed(2)}</div>
-              <div className={`company-change ${quote.change >= 0 ? 'positive' : 'negative'}`}>
-                {quote.change >= 0 ? '▲' : '▼'}${Math.abs(quote.change).toFixed(2)} ({quote.changePercent >= 0 ? '+' : ''}{quote.changePercent.toFixed(2)}%)
+              <div className="company-price">${(quote.price ?? 0).toFixed(2)}</div>
+              <div className={`company-change ${(quote.change ?? 0) >= 0 ? 'positive' : 'negative'}`}>
+                {(quote.change ?? 0) >= 0 ? '▲' : '▼'}${Math.abs(quote.change ?? 0).toFixed(2)} ({(quote.changePercent ?? 0) >= 0 ? '+' : ''}{(quote.changePercent ?? 0).toFixed(2)}%)
               </div>
             </div>
           )}

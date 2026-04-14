@@ -128,3 +128,46 @@ def delete_event(
     db.delete(event)
     db.commit()
     return {"message": "Deleted successfully"}
+
+@router.post("/events/import-favorites", response_model=schemas.ImportFavoritesResponse)
+async def import_favorites_to_calendar(
+    request: schemas.ImportFavoritesRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    즐겨찾기 기업의 실적 발표 일정과 미국 주요 경제 이벤트를 캘린더에 자동 추가합니다.
+    """
+    from app.services.calendar_service import import_earnings_to_calendar
+    
+    try:
+        result = await import_earnings_to_calendar(
+            user_id=current_user.id,
+            db=db,
+            days_ahead=request.days_ahead
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"일정 가져오기 실패: {str(e)}"
+        )
+
+@router.delete("/events/auto-events")
+def delete_auto_events(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    자동으로 추가된 일정(earnings_auto, economic_event)을 모두 삭제합니다.
+    """
+    deleted_count = db.query(models.UserEvent).filter(
+        models.UserEvent.user_id == current_user.id,
+        models.UserEvent.event_type.in_(['earnings_auto', 'economic_event'])
+    ).delete(synchronize_session=False)
+    db.commit()
+    
+    return {
+        "message": f"{deleted_count}개의 자동 일정이 삭제되었습니다.",
+        "deleted_count": deleted_count
+    }
