@@ -49,10 +49,11 @@ export const EventChip: React.FC<EventChipProps> = ({ event, onClick }) => {
   return (
     <div 
       className={`event-chip`} 
-      title={event.title}
+      title={`${event.title} - ${event.time}`}
       style={style}
       onClick={onClick}
     >
+      {event.time && <span style={{ opacity: 0.7, marginRight: '4px', fontSize: '10px' }}>{event.time.split(' ')[0]}</span>}
       {event.title}
     </div>
   );
