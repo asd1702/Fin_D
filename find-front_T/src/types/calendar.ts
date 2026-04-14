@@ -1,4 +1,4 @@
-export type EventType = 'earnings' | 'conference' | 'dividend' | 'split' | 'economic' | 'personal';
+export type EventType = 'earnings' | 'earnings_auto' | 'economic_event' | 'conference' | 'dividend' | 'split' | 'economic' | 'personal';
 
 export interface CalendarEvent {
   id: string;
