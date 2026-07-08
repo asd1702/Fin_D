@@ -1,87 +1,133 @@
-# fin-q-chart-server
+# Fin:D Chart Server
 
-## Chart Server Aggregation & API
+실시간 시장 가격 데이터를 수신해 캔들 데이터로 저장하고, 프론트엔드 차트에 REST/WebSocket으로 제공하는 서버입니다.
 
-### 환경 개요
-`Candle1m` 테이블에 1분 봉이 저장되고, **TimescaleDB Continuous Aggregates**가 자동으로 상위 타임프레임(5분, 15분, 1시간, 4시간, 1일, 1주, 1개월)을 집계합니다.
+## 역할
 
-**중요:** 애플리케이션은 1분봉만 저장하며, 상위 타임프레임 집계는 DB가 전담합니다. 이를 통해:
-- CPU/메모리 부하 최소화
-- 데이터 정합성 보장
-- Race Condition 방지
+- TwelveData WebSocket 가격 수신
+- 1분봉 OHLCV 생성
+- TimescaleDB 저장
+- Continuous Aggregates 기반 상위 타임프레임 조회
+- REST API 캔들 조회
+- WebSocket 실시간 tick/candle 브로드캐스트
 
-### WebSocket 이벤트
-클라이언트는 서버 (`/ws`) 에 연결하면 아래 형태 메시지를 수신합니다.
+## Architecture
 
-```jsonc
-{ "type": "tick", "symbol": "BTC/USD", "price": 100.12, "timestamp": 1731400000 }
-{ "type": "candle", "timeframe": "1m", "candle": { "symbol": "BTC/USD", "startTime": 1731400000, "open": 100, "high": 101, "low": 99, "close": 100.5, "volume": 1234 } }
-{ "type": "candle", "timeframe": "5m", "candle": { "symbol": "BTC/USD", "timeframe": 5, "startTime": 1731399700, "open": 98, "high": 102, "low": 97.5, "close": 100.5, "volume": 5555 } }
+```mermaid
+flowchart TB
+    td["TwelveData WebSocket"] --> provider["TwelveData Provider"]
+    provider --> maker["CandleMaker<br/>tick -> 1m OHLCV"]
+    maker --> buffer["CandleBuffer<br/>batch flush / retry / DLQ"]
+    buffer --> db[("TimescaleDB<br/>Candle1m")]
+    db --> ca["Continuous Aggregates<br/>5m / 15m / 1h / 4h / 1D / 1W / 1M"]
+    api["Express REST API"] --> db
+    api --> ca
+    provider --> ws["WebSocket /ws<br/>tick broadcast"]
+    maker --> ws
+    ws --> front["Frontend Chart"]
+    api --> front
 ```
 
-`tick` 는 실시간 체결(가격) 갱신용이고, `candle` 메시지는 봉이 **완성되는 시점** 에 한 번 전송됩니다.
+## Tech Stack
 
-### REST API
+| 구분 | 기술 |
+| --- | --- |
+| Runtime | Node.js, TypeScript |
+| Server | Express, ws |
+| Database | PostgreSQL, TimescaleDB, Prisma |
+| Data Source | TwelveData WebSocket/API |
+| Infra | Docker, docker-compose |
+| Utility | axios, envalid, winston, node-cron |
 
-1. 최근 봉 조회
-```
-GET /api/candles/:symbol/:timeframe?limit=500
-```
- timeframes: `1m | 5m | 15m | 1h | 4h`
+## Getting Started
 
-응답:
-```jsonc
-{
-  "symbol": "BTC/USD",
-  "timeframe": "15m",
-  "data": [ { "time": 1731400000, "open": 100, "high": 103, "low": 99, "close": 101, "volume": 9999 } ]
-}
-```
-
-2. CA 뷰 수동 새로고침 (백필 후 사용)
-```
-POST /api/aggregate/refresh
-Body: { "timeframe": "5m", "from": 1638316800, "to": 1638403200 }
-```
-
-1분봉 데이터를 백필한 후 상위 타임프레임에 즉시 반영하기 위해 사용합니다.
-TimescaleDB Continuous Aggregates는 자동 갱신되지만, 백필 후 즉시 반영이 필요할 때 사용하세요.
-
-응답:
-```jsonc
-{ "success": true, "timeframe": "5m", "message": "Continuous Aggregate 뷰가 새로고침되었습니다." }
-```
-
-### 실행 방법
-1. `.env` 파일에 `DATABASE_URL`, `TWELVE_DATA_API_KEY`, 필요시 `STREAM_SYMBOLS` 설정.
-2. 마이그레이션:
 ```bash
-npx prisma migrate dev --name init
-```
-3. 개발 서버:
-```bash
+npm install
+cp .env.example .env
+npm run prisma:generate
+npm run migrate:deploy
 npm run dev
 ```
 
-### 서버 구조 요약
-- `src/server.ts`: Express + WebSocket 서버, TwelveData 실시간 수신, 봉 생성/브로드캐스트
-- `src/modules/candle/candle.maker.ts`: 1분봉 실시간 조립
-- `src/modules/candle/candle.buffer.ts`: 배치 저장 버퍼 (Graceful Shutdown, Dead Letter Queue)
-- `src/modules/candle/candle.repository.ts`: DB 조회 (CA 뷰 직접 조회)
-- `prisma/schema.prisma`: `Candle1m` 모델 (집계 테이블은 제거됨)
-- `prisma/migrations/continuous_aggregates.sql`: TimescaleDB CA 뷰 정의
+TimescaleDB Continuous Aggregates는 `prisma/migrations/continuous_aggregates.sql`에 정리되어 있습니다. 백필이나 초기 데이터 적재 후에는 필요에 따라 해당 SQL 또는 `POST /api/aggregate/refresh`를 사용해 집계 뷰를 갱신합니다.
 
-**집계 아키텍처 변경:**
-- ❌ 기존: Node.js가 1분봉을 읽어 집계 → CandleAgg 테이블에 저장
-- ✅ 현재: TimescaleDB가 자동 집계 → CA 뷰(market.candle_5m 등) 조회만
+## Environment Variables
 
-### 향후 개선 아이디어
-- ✅ TimescaleDB Continuous Aggregates 적용 완료
-- 심볼별 구독 관리 (클라이언트 -> 특정 심볼만 수신)
-- Redis Pub/Sub 또는 Kafka로 수평 확장
-- 시장 휴장 캘린더 DB 구축 (공휴일, 서머타임 등)
-- 단위/통화 변환 및 지수(나스닥/S&P/Dow) 실시간 feed 확장
-- WebSocket Ping/Pong 및 재연결 로직 강화
-- 테스트 코드 작성 (Jest + 70% 커버리지 목표)
-- 에러 처리 개선 (Prisma 에러 코드 활용)
-- 모니터링 (Prometheus metrics + Grafana dashboard)
+| 변수 | 설명 |
+| --- | --- |
+| `NODE_ENV` | `development`, `production`, `test` |
+| `PORT` | HTTP/WebSocket 서버 포트, 기본값 `8080` |
+| `DATABASE_URL` | PostgreSQL/TimescaleDB 연결 URL |
+| `TWELVE_DATA_API_KEY` | TwelveData API Key |
+| `USE_REDIS` | Redis Pub/Sub 사용 여부, 기본값 `false` |
+| `REDIS_URL` | Redis 연결 URL |
+| `STREAM_SYMBOLS` | TwelveData WebSocket 구독 심볼 목록 |
+| `CORS_ORIGIN` | 허용할 Origin 목록 |
+
+## API
+
+| Method | Path | 설명 |
+| --- | --- | --- |
+| `GET` | `/` | 서버 기본 상태 확인 |
+| `GET` | `/health` | DB 연결을 포함한 readiness 확인 |
+| `GET` | `/api/candles/:symbol/:timeframe` | 캔들 조회. `limit`, `from`, `to` query 지원 |
+| `POST` | `/api/aggregate/refresh` | TimescaleDB Continuous Aggregate 수동 갱신 |
+| `GET` | `/api/analysis/...` | 기술적 지표, 성과, 계절성, Fear & Greed 조회 |
+| `GET` | `/api/summary` | 여러 심볼 요약 조회 |
+| `GET` | `/api/summary/:symbol` | 단일 심볼 요약 조회 |
+| `GET` | `/api/quotes/...` | 최신 시세, 티커, 카테고리별 시세 조회 |
+| `GET/POST/PATCH/DELETE` | `/api/users` | 사용자 데이터 CRUD |
+
+지원 타임프레임은 `1m`, `5m`, `15m`, `1h`, `4h`, `1D`, `1W`, `1M`입니다.
+
+## WebSocket
+
+- endpoint: `/ws`
+- server message type: `tick`, `candle`
+- `tick`: TwelveData 실시간 가격 수신 시 브로드캐스트
+- `candle`: 1분봉 완성 시 브로드캐스트
+- 현재는 연결된 클라이언트 전체 브로드캐스트 중심입니다.
+- 심볼별 구독/해제 프로토콜은 개선 예정입니다.
+
+예시:
+
+```json
+{ "type": "tick", "symbol": "BTC/USD", "price": 100.12, "timestamp": 1731400000 }
+```
+
+```json
+{
+  "type": "candle",
+  "timeframe": "1m",
+  "candle": {
+    "symbol": "BTC/USD",
+    "startTime": 1731400000,
+    "open": 100,
+    "high": 101,
+    "low": 99,
+    "close": 100.5,
+    "volume": 0
+  }
+}
+```
+
+## 서버 구조
+
+| 경로 | 역할 |
+| --- | --- |
+| `src/server.ts` | HTTP 서버 생성, WebSocket 초기화, TwelveData 연결, 스케줄러 시작 |
+| `src/app.ts` | Express 앱, middleware, health check, `/api` 라우팅 |
+| `src/modules/realtime/` | TwelveData provider, WebSocket broadcast, Pub/Sub |
+| `src/modules/candle/` | CandleMaker, CandleBuffer, 캔들 조회/집계 API |
+| `src/modules/analysis/` | 기술적 지표 및 시장 지표 API |
+| `src/modules/summary/` | 심볼 요약 API |
+| `src/modules/quote/` | 최신 시세 API |
+| `prisma/schema.prisma` | `Candle1m`, `DeadLetter`, `User`, `Alert` 모델 |
+| `prisma/migrations/continuous_aggregates.sql` | TimescaleDB Continuous Aggregates 정의 |
+
+## Current Limitations
+
+- 테스트 코드가 부족합니다.
+- WebSocket 심볼별 구독/해제 프로토콜은 아직 구현되지 않았습니다.
+- Dockerfile은 프로덕션 빌드 최적화가 필요합니다.
+- DB migration과 TimescaleDB 초기화 SQL 정리가 필요합니다.

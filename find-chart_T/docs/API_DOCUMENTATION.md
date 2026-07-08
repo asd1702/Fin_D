@@ -1,166 +1,172 @@
-# FinD Chart API 문서
+# Fin:D Chart API 문서
 
-이 문서는 FinD Chart 서비스에서 사용 가능한 REST API 엔드포인트를 설명합니다.
+이 문서는 Chart Server 코드에 실제 등록된 REST API를 기준으로 정리한 문서입니다.
 
-## 기본 URL (Base URL)
-모든 엔드포인트는 `/api` 접두사를 사용합니다 (표준 설정을 가정).
+## 기본 정보
 
----
+- 기본 REST prefix: `/api`
+- WebSocket endpoint: `/ws`
+- health check: `GET /health`
 
-## 캔들 (Candle) API
-**기본 경로:** `/api/candles`
+## Health
 
-### 캔들 데이터 조회 (Get Candle Data)
-특정 심볼과 타임프레임에 대한 캔들(OHLCV) 데이터를 조회합니다.
+| Method | Path | 설명 |
+| --- | --- | --- |
+| `GET` | `/` | 서버 프로세스 상태 확인 |
+| `GET` | `/health` | DB 연결을 포함한 readiness 확인 |
 
-- **엔드포인트:** `GET /:symbol/:timeframe`
-- **파라미터:**
-  - `symbol`: 주식 또는 자산 심볼 (예: `AAPL`, `BTC-USD`).
-  - `timeframe`: 캔들의 타임프레임 (예: `1m`, `1h`, `1d`).
+## Candle API
 
----
+기본 경로: `/api/candles`
 
-## 집계 (Aggregate) API
-**기본 경로:** `/api/aggregate`
+### 캔들 데이터 조회
 
-### 집계 데이터 새로고침 (Refresh Aggregates)
-TimescaleDB의 연속 집계(Continuous Aggregates)를 수동으로 새로고침합니다. 데이터를 백필(backfill)한 후 유용하게 사용됩니다.
+```http
+GET /api/candles/:symbol/:timeframe
+```
 
-- **엔드포인트:** `POST /refresh`
-- **설명:** TimescaleDB Continuous Aggregate 뷰를 수동으로 갱신합니다.
-- **사용 사례:**
-  1. 1분봉 데이터를 백필한 후 상위 타임프레임에 즉시 반영하고자 할 때.
-  2. 데이터 정합성 문제 발생 시 수동 갱신.
+| 항목 | 설명 |
+| --- | --- |
+| `symbol` | 조회할 심볼. 예: `AAPL`, `QQQ`, `BTC/USD` |
+| `timeframe` | `1m`, `5m`, `15m`, `1h`, `4h`, `1D`, `1W`, `1M` |
+| `limit` | 선택 query. 기본값 `1000` |
+| `from` | 선택 query. epoch seconds 또는 날짜 문자열 |
+| `to` | 선택 query. epoch seconds 또는 날짜 문자열 |
 
----
+응답 예시:
 
-## 분석 (Analysis) API
-**기본 경로:** `/api/analysis`
+```json
+{
+  "symbol": "BTC/USD",
+  "timeframe": "15m",
+  "data": [
+    {
+      "time": 1731400000,
+      "open": 100,
+      "high": 103,
+      "low": 99,
+      "close": 101,
+      "volume": 9999
+    }
+  ]
+}
+```
 
-### 대시보드 지표 (Dashboard Indicators)
-#### 지표 요약 일괄 조회
-- **엔드포인트:** `GET /indicators/batch`
-- **쿼리 파라미터:**
-  - `symbols`: 쉼표로 구분된 심볼 목록 (예: `QQQ,SPY,DIA`).
+## Aggregate API
 
-#### 공포 & 탐욕 지수 (Fear & Greed Index)
-- **엔드포인트:** `GET /feargreed`
-- **쿼리 파라미터:**
-  - `days`: 조회할 과거 데이터 일수 (기본값: 7).
+기본 경로: `/api/aggregate`
 
-#### 주식 공포 & 탐욕 지수 (CNN)
-- **엔드포인트:** `GET /feargreed/stock`
-- **설명:** 주식 시장의 공포 & 탐욕 지수(CNN 출처)를 조회합니다.
+### Continuous Aggregate 수동 새로고침
 
-### 성과 및 계절성 (Performance & Seasonal)
-#### 성과 조회
-- **엔드포인트:** `GET /:symbol/performance`
+```http
+POST /api/aggregate/refresh
+```
 
-#### 계절성 데이터 조회
-- **엔드포인트:** `GET /:symbol/seasonal`
+1분봉 데이터를 백필한 뒤 TimescaleDB Continuous Aggregate View에 즉시 반영하고 싶을 때 사용합니다.
 
-#### 지표 요약 조회
-- **엔드포인트:** `GET /:symbol/indicators`
+요청 예시:
 
-### 기술적 지표 (Technical Indicators)
-특정 심볼과 타임프레임에 대한 기술적 지표 값을 조회합니다.
+```json
+{
+  "timeframe": "5m",
+  "from": 1638316800,
+  "to": 1638403200
+}
+```
 
-- **RSI:** `GET /:symbol/:timeframe/rsi`
-- **MACD:** `GET /:symbol/:timeframe/macd`
-- **볼린저 밴드 (Bollinger Bands):** `GET /:symbol/:timeframe/bollinger`
-- **단순 이동 평균 (SMA):** `GET /:symbol/:timeframe/sma`
-- **지수 이동 평균 (EMA):** `GET /:symbol/:timeframe/ema`
+응답 예시:
 
----
+```json
+{
+  "success": true,
+  "timeframe": "5m",
+  "message": "Continuous Aggregate 뷰가 새로고침되었습니다."
+}
+```
 
-## 인증 (Auth) API
-**기본 경로:** `/api/auth`
+## Analysis API
 
-### 로그인
-- **엔드포인트:** `POST /login`
-- **Body:** 로그인 자격 증명 (이메일/사용자명, 비밀번호).
+기본 경로: `/api/analysis`
 
-### 회원가입
-- **엔드포인트:** `POST /register`
-- **Body:** 회원가입 정보.
+| Method | Path | 설명 |
+| --- | --- | --- |
+| `GET` | `/api/analysis/indicators/batch?symbols=QQQ,SPY,DIA` | 여러 심볼의 지표 요약 조회 |
+| `GET` | `/api/analysis/feargreed?days=7` | Fear & Greed 데이터 조회 |
+| `GET` | `/api/analysis/feargreed/stock` | CNN 주식 시장 Fear & Greed 조회 |
+| `GET` | `/api/analysis/:symbol/performance` | 심볼 성과 조회 |
+| `GET` | `/api/analysis/:symbol/seasonal` | 심볼 계절성 조회 |
+| `GET` | `/api/analysis/:symbol/indicators` | 심볼 지표 요약 조회 |
+| `GET` | `/api/analysis/:symbol/:timeframe/rsi` | RSI 조회 |
+| `GET` | `/api/analysis/:symbol/:timeframe/macd` | MACD 조회 |
+| `GET` | `/api/analysis/:symbol/:timeframe/bollinger` | Bollinger Bands 조회 |
+| `GET` | `/api/analysis/:symbol/:timeframe/sma` | SMA 조회 |
+| `GET` | `/api/analysis/:symbol/:timeframe/ema` | EMA 조회 |
 
-### 현재 사용자 조회
-- **엔드포인트:** `GET /me`
-- **설명:** 현재 인증된 사용자의 정보를 조회합니다.
+## Summary API
 
----
+기본 경로: `/api/summary`
 
-## 사용자 (User) API
-**기본 경로:** `/api/users`
+| Method | Path | 설명 |
+| --- | --- | --- |
+| `GET` | `/api/summary/status` | 데이터 상태 확인 |
+| `GET` | `/api/summary?symbols=QQQ,SPY` | 여러 심볼 요약 조회 |
+| `GET` | `/api/summary/:symbol` | 단일 심볼 요약 조회 |
 
-### 사용자 조회
-- **엔드포인트:** `GET /:id`
+## Quote API
 
-### 사용자 생성
-- **엔드포인트:** `POST /`
+기본 경로: `/api/quotes`
 
-### 사용자 수정
-- **엔드포인트:** `PATCH /:id`
+| Method | Path | 설명 |
+| --- | --- | --- |
+| `GET` | `/api/quotes/summary` | 전체 시세 요약 |
+| `GET` | `/api/quotes/ticker` | 티커 바 데이터 |
+| `GET` | `/api/quotes/category/:category` | 카테고리별 시세 |
+| `GET` | `/api/quotes/:symbol` | 개별 심볼 최신 시세 |
 
-### 사용자 삭제
-- **엔드포인트:** `DELETE /:id`
+## User API
 
----
+기본 경로: `/api/users`
 
-## 알림 (Alert) API
-**기본 경로:** `/api/alerts`
-**참고:** 모든 엔드포인트는 인증이 필요합니다.
+Chart Server 코드에는 사용자 CRUD 라우트가 등록되어 있습니다. 차트 서버의 핵심 기능은 아니므로 연동 시 필요한 경우에만 사용합니다.
 
-### 모든 알림 조회
-- **엔드포인트:** `GET /`
+| Method | Path | 설명 |
+| --- | --- | --- |
+| `GET` | `/api/users/:id` | 사용자 조회 |
+| `POST` | `/api/users` | 사용자 생성 |
+| `PATCH` | `/api/users/:id` | 사용자 수정 |
+| `DELETE` | `/api/users/:id` | 사용자 삭제 |
 
-### 알림 상세 조회
-- **엔드포인트:** `GET /:id`
+## WebSocket
 
-### 알림 생성
-- **엔드포인트:** `POST /`
+```text
+ws://<host>:<port>/ws
+```
 
-### 알림 수정
-- **엔드포인트:** `PATCH /:id`
+서버가 클라이언트로 브로드캐스트하는 주요 메시지는 다음과 같습니다.
 
-### 알림 삭제
-- **엔드포인트:** `DELETE /:id`
+```json
+{ "type": "tick", "symbol": "BTC/USD", "price": 100.12, "timestamp": 1731400000 }
+```
 
----
+```json
+{
+  "type": "candle",
+  "timeframe": "1m",
+  "candle": {
+    "symbol": "BTC/USD",
+    "startTime": 1731400000,
+    "open": 100,
+    "high": 101,
+    "low": 99,
+    "close": 100.5,
+    "volume": 0
+  }
+}
+```
 
-## 요약 (Summary) API
-**기본 경로:** `/api/summary`
+현재 WebSocket은 전체 브로드캐스트 중심입니다. 클라이언트별 심볼 구독/해제 프로토콜은 별도 개선 대상입니다.
 
-### 데이터 상태 확인
-- **엔드포인트:** `GET /status`
-- **설명:** 데이터의 상태(예: 마지막 업데이트 시간)를 확인합니다.
+## 문서에서 제외한 API
 
-### 다중 요약 조회
-- **엔드포인트:** `GET /`
-- **쿼리 파라미터:**
-  - `symbols`: 쉼표로 구분된 심볼 목록 (예: `QQQ,SPY`).
-
-### 단일 요약 조회
-- **엔드포인트:** `GET /:symbol`
-- **설명:** 특정 심볼에 대한 요약 데이터(예: 전일 종가)를 조회합니다.
-
----
-
-## 시세 (Quote) API
-**기본 경로:** `/api/quotes`
-
-### 시장 요약 조회
-- **엔드포인트:** `GET /summary`
-- **설명:** 전체적인 시장 요약 정보를 조회합니다.
-
-### 티커 바 데이터 조회
-- **엔드포인트:** `GET /ticker`
-
-### 카테고리별 시세 조회
-- **엔드포인트:** `GET /category/:category`
-- **파라미터:**
-  - `category`: 자산 카테고리 (예: `stock`, `crypto`).
-
-### 개별 시세 조회
-- **엔드포인트:** `GET /:symbol`
-- **설명:** 특정 심볼의 최신 시세를 조회합니다.
+- `/api/auth`: 현재 Chart Server 라우터에 등록되어 있지 않습니다.
+- `/api/alerts`: Prisma 모델은 있지만 현재 Chart Server 라우터에 등록되어 있지 않습니다.

@@ -1,7 +1,0 @@
-FMP Key Loaded: True
-Checking DB and alternative endpoints for AAPL...
-DB Record (2025-11-01): Target=None
-Fetching: https://financialmodelingprep.com/api/v4/price-target-consensus?symbol=AAPL&limit=5&apikey=vAkx2qDzIjXYWbXC9NKYBq6MHwjmJdHy
-V4 Consensus: [{'symbol': 'AAPL', 'targetHigh': 345, 'targetLow': 220, 'targetConsensus': 286.11, 'targetMedian': 300}]
-Fetching: https://financialmodelingprep.com/api/v4/price-target?symbol=AAPL&apikey=vAkx2qDzIjXYWbXC9NKYBq6MHwjmJdHy
-Price Target V4 (Latest): {'symbol': 'AAPL', 'publishedDate': '2025-11-03T11:39:17.000Z', 'newsURL': 'https://thefly.com/permalinks/entry.php/id4227716/2624286394/AAPL-Apple-price-target-raised-by--at-Bernstein-heres-why', 'newsTitle': 'Apple price target raised to $325 from $290 at Bernstein', 'analystName': '', 'priceTarget': 325, 'adjPriceTarget': 325, 'priceWhenPosted': 270.37, 'newsPublisher': 'TheFly', 'newsBaseURL': 'thefly.com', 'analystCompany': 'Bernstein'}
