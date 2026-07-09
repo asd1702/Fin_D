@@ -9,10 +9,10 @@
 | Secret 이름 | 설명 | 입력할 값 |
 | :--- | :--- | :--- |
 | `DOCKER_USERNAME` | Docker Hub ID | Docker Hub ID (예: `asd1702`) |
-| `DOCKER_PASSWORD` | Docker Hub 토큰 | Docker Hub 비밀번호 또는 Access Token |
-| `EC2_HOST` | 서버 주소 | EC2 인스턴스의 Public IP |
+| `DOCKER_PASSWORD` | Docker Hub 토큰 | Docker Hub 비밀번호 또는 액세스 토큰 |
+| `EC2_HOST` | 서버 주소 | EC2 인스턴스의 공개 IP |
 | `EC2_USER` | 서버 사용자 이름 | `ubuntu` (AMI에 따라 `ec2-user`) |
-| `EC2_SSH_KEY` | SSH Private Key | `.pem` 키 파일의 **전체 내용**<br>(`-----BEGIN RSA PRIVATE KEY-----`로 시작) |
+| `EC2_SSH_KEY` | SSH 개인 키 | `.pem` 키 파일의 **전체 내용**<br>(`-----BEGIN RSA PRIVATE KEY-----`로 시작) |
 
 > [!TIP]
 > **EC2 SSH Key 확인 방법**
