@@ -1,27 +1,36 @@
-# Base image
-FROM node:22-alpine
+# syntax=docker/dockerfile:1
 
-# Working directory
+FROM node:22-alpine AS deps
 WORKDIR /app
+RUN apk add --no-cache openssl
+COPY package.json package-lock.json ./
+RUN npm ci
 
-# Install system dependencies (OpenSSL required for Prisma)
+FROM node:22-alpine AS build
+WORKDIR /app
+RUN apk add --no-cache openssl
+ENV DATABASE_URL=postgresql://build:build@localhost:5432/build?schema=public
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json package-lock.json tsconfig.json tsconfig.build.json prisma.config.ts ./
+COPY prisma ./prisma
+COPY src ./src
+RUN npx prisma generate
+RUN npm run build
+
+FROM node:22-alpine AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
 RUN apk add --no-cache openssl
 
-# Copy package files
 COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
 
-# Install dependencies (including devDependencies for ts-node)
-RUN npm install
+COPY prisma ./prisma
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=build /app/node_modules/@prisma/client ./node_modules/@prisma/client
 
-# Copy source code
-COPY . .
-
-# Generate Prisma Client (Needs dummy URL for build)
-ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
-RUN npx prisma generate
-
-# Expose port
+RUN mkdir -p /app/logs && chown node:node /app/logs
+USER node
 EXPOSE 8080
-
-# Run the server directly with ts-node to avoid dotenv-cli dependency on .env file existence
-CMD ["npx", "ts-node", "src/server.ts"]
+CMD ["node", "dist/server.js"]

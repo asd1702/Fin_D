@@ -1,11 +1,12 @@
-version: '3.8'
-
 services:
   find-chart:
-    image: asd1702/find-chart:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: find-chart-server:local
     container_name: find-chart
     ports:
-      - "8080:8080"
+      - "${PORT:-8080}:8080"
     env_file:
       - .env
     environment:

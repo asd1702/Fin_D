@@ -6,6 +6,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "start:prod": "node dist/server.js",
     "migrate:create": "dotenv -e .env -- prisma migrate dev --create-only",
     "migrate:deploy": "dotenv -e .env -- prisma migrate deploy",
     "prisma:generate": "dotenv -e .env -- prisma generate",

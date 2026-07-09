@@ -59,9 +59,18 @@ Local TimescaleDB는 `npm run db:up`으로 실행합니다. 기본 비밀번호 
 ```bash
 npm test
 npm run typecheck
+npm run build
 ```
 
 Vitest 회귀 테스트와 strict TypeScript typecheck를 모두 통과합니다.
+
+### Production Docker
+
+```bash
+docker build -t find-chart-server:local .
+```
+
+Production image는 multi-stage build로 생성되며 `node dist/server.js`를 실행합니다. Runtime 환경변수와 secret은 이미지가 아닌 실행 환경에서 주입합니다. 자세한 내용은 [Docker](docs/DOCKER.md)를 참고하세요.
 
 ## Environment Variables
 

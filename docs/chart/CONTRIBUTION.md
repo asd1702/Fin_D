@@ -53,5 +53,6 @@
 - Vitest 기반 REST/WebSocket 핵심 회귀 테스트를 구축
 - Prisma Client 재생성과 stale module export 정리로 strict typecheck 통과
 - DB reset/setup 스크립트에 production/RDS 차단 guard를 적용하고 [DB Setup](../../find-chart_T/docs/DB_SETUP.md) 절차 문서화
+- Multi-stage production image와 non-root `node dist/server.js` runtime 구성 및 smoke test 검증
 - Dockerfile은 프로덕션 빌드 최적화가 필요
 - DB 초기화 스크립트와 Prisma migration/TimescaleDB SQL 정리가 필요

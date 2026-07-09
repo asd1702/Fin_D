@@ -11,6 +11,7 @@ Chart Server는 PostgreSQL과 TimescaleDB를 사용합니다.
 | `prisma/migrations/continuous_aggregates.sql` | TimescaleDB Continuous Aggregate view와 refresh policy 관리 |
 
 Prisma migration은 애플리케이션이 사용하는 일반 DB 객체의 변경 이력을 관리합니다. Continuous Aggregate SQL은 Prisma schema로 표현하기 어려운 TimescaleDB 전용 view와 policy를 관리합니다.
+Local DB Compose는 이 문서에서 다루며 production app image의 build/run 절차는 [Docker](DOCKER.md)를 참고하세요.
 
 ## Local 개발 DB 설정
 
