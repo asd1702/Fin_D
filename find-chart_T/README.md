@@ -6,20 +6,7 @@ TwelveData의 실시간 가격을 1분봉 OHLCV candle로 변환·저장하고, 
 
 ## Architecture
 
-```mermaid
-flowchart TB
-    td["TwelveData WebSocket"] --> provider["TwelveData Provider"]
-    provider --> maker["CandleMaker<br/>tick -> 1m OHLCV"]
-    maker --> buffer["CandleBuffer<br/>batch / retry / DLQ"]
-    buffer --> db[("TimescaleDB<br/>Candle1m")]
-    db --> ca["Continuous Aggregates<br/>5m / 15m / 1h / 4h / 1D / 1W / 1M"]
-    api["Express REST API"] --> db
-    api --> ca
-    provider --> ws["WebSocket /ws<br/>symbol subscription"]
-    maker --> ws
-    api --> front["Frontend Chart"]
-    ws --> front
-```
+![Fin:D Chart Server 아키텍처](docs/images/find-chart-architecture.svg)
 
 ## Tech Stack
 
