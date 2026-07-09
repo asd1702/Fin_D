@@ -48,6 +48,10 @@ export class CandleBuffer {
   private isFlushing = false;
   private flushTimer: NodeJS.Timeout | null = null;
   private isShuttingDown = false;
+  private shutdownHandlers: Array<{
+    signal: NodeJS.Signals;
+    handler: () => void;
+  }> = [];
 
   // 통계
   private stats = {
@@ -292,9 +296,11 @@ export class CandleBuffer {
     };
 
     // 시그널 핸들러 등록
-    process.on('SIGTERM', () => void shutdown('SIGTERM'));
-    process.on('SIGINT', () => void shutdown('SIGINT'));
-    process.on('SIGUSR2', () => void shutdown('SIGUSR2')); // nodemon 재시작
+    for (const signal of ['SIGTERM', 'SIGINT', 'SIGUSR2'] as const) {
+      const handler = () => void shutdown(signal);
+      this.shutdownHandlers.push({ signal, handler });
+      process.on(signal, handler);
+    }
   }
 
   /**
@@ -334,6 +340,10 @@ export class CandleBuffer {
       clearInterval(this.flushTimer);
       this.flushTimer = null;
     }
+    for (const { signal, handler } of this.shutdownHandlers) {
+      process.off(signal, handler);
+    }
+    this.shutdownHandlers = [];
     await this.forceFlush();
   }
 }

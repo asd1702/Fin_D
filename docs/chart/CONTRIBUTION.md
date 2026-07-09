@@ -11,6 +11,7 @@
 - TimescaleDB Continuous Aggregates 기반 상위 타임프레임 조회 구조 적용
 - REST API(`/api/candles/:symbol/:timeframe`)와 WebSocket(`/ws`) 기반 차트 데이터 제공
 - Docker 기반 실행 환경 구성
+- CandleMaker, timeframe 유틸, CandleBuffer, 핵심 API 테스트 기반 구축
 
 ## 담당 범위
 
@@ -46,6 +47,6 @@
 ## 현재 한계와 개선 계획
 
 - 현재 WebSocket은 전체 브로드캐스트 중심이며, 심볼별 구독/해제 프로토콜은 개선 필요
-- 테스트 코드가 부족하여 CandleMaker, CandleBuffer, API 검증 테스트 추가 필요
+- Vitest 기반 핵심 회귀 테스트를 추가했으며, 후속 단계에서 API 실패 경로와 WebSocket 통합 테스트 확장 필요
 - Dockerfile은 프로덕션 빌드 최적화가 필요
 - DB 초기화 스크립트와 Prisma migration/TimescaleDB SQL 정리가 필요

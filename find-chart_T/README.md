@@ -51,6 +51,13 @@ npm run dev
 
 TimescaleDB Continuous Aggregates는 `prisma/migrations/continuous_aggregates.sql`에 정리되어 있습니다. 백필이나 초기 데이터 적재 후에는 필요에 따라 해당 SQL 또는 `POST /api/aggregate/refresh`를 사용해 집계 뷰를 갱신합니다.
 
+### Test
+
+```bash
+npm test
+npm run typecheck
+```
+
 ## Environment Variables
 
 | 변수 | 설명 |
@@ -127,7 +134,7 @@ TimescaleDB Continuous Aggregates는 `prisma/migrations/continuous_aggregates.sq
 
 ## Current Limitations
 
-- 테스트 코드가 부족합니다.
+- CandleMaker, timeframe 유틸, CandleBuffer, 핵심 API의 테스트 기반을 구축했습니다.
 - WebSocket 심볼별 구독/해제 프로토콜은 아직 구현되지 않았습니다.
 - Dockerfile은 프로덕션 빌드 최적화가 필요합니다.
 - DB migration과 TimescaleDB 초기화 SQL 정리가 필요합니다.
