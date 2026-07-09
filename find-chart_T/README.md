@@ -63,6 +63,7 @@ npm run build
 ```
 
 Vitest 회귀 테스트와 strict TypeScript typecheck를 모두 통과합니다.
+Dependency audit 분류와 업데이트 근거는 [Dependency Audit](docs/DEPENDENCY_AUDIT.md)을 참고하세요.
 
 ### Production Docker
 
