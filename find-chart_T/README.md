@@ -73,6 +73,10 @@ docker build -t find-chart-server:local .
 
 Production image는 multi-stage build로 생성되며 `node dist/server.js`를 실행합니다. Runtime 환경변수와 secret은 이미지가 아닌 실행 환경에서 주입합니다. 자세한 내용은 [Docker](docs/DOCKER.md)를 참고하세요.
 
+## CI
+
+Chart Server 변경은 GitHub Actions에서 `npm ci`, Prisma Client 생성, 전체/production audit, 테스트, typecheck, build, Docker image build를 검증합니다. CI는 실제 운영 secret이나 RDS 연결 없이 placeholder 환경변수만 사용하며 runtime smoke test는 로컬 검증으로 유지합니다.
+
 ## Environment Variables
 
 | 변수 | 설명 |

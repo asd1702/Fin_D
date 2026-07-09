@@ -1,0 +1,75 @@
+name: Chart Server CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - "find-chart_T/**"
+      - ".github/workflows/chart-server-ci.yml"
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - "find-chart_T/**"
+      - ".github/workflows/chart-server-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  chart-server:
+    name: Test, typecheck, build, audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        working-directory: find-chart_T
+
+    env:
+      NODE_ENV: test
+      PORT: 8080
+      DATABASE_URL: postgresql://find_chart:1234@localhost:5432/find_chart?schema=market
+      TWELVE_DATA_API_KEY: replace-me
+      STREAM_SYMBOLS: AAPL,MSFT,BTC/USD
+      USE_REDIS: "false"
+      REDIS_URL: redis://localhost:6379
+      CORS_ORIGIN: http://localhost:5173
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: find-chart_T/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npm run prisma:generate
+
+      - name: Audit dependencies
+        run: npm audit
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev
+
+      - name: Run tests
+        run: npm test
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Docker build
+        run: docker build -t find-chart-server:ci .

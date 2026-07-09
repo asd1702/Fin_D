@@ -12,6 +12,7 @@ docker build -t find-chart-server:local .
 ```
 
 분석용 JSON은 `/tmp`에만 생성했으며 저장소에는 추가하지 않았습니다. `npm audit fix --force`는 사용하지 않았습니다.
+GitHub Actions에서도 `npm audit`과 `npm audit --omit=dev`를 실패 조건으로 실행하며, 실제 secret이나 운영 DB 연결은 사용하지 않습니다.
 
 ## Audit Summary
 
