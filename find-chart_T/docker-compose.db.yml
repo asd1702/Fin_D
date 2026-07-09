@@ -4,7 +4,7 @@ services:
     container_name: find-chart-timescaledb
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     environment:
       POSTGRES_DB: find_chart
       POSTGRES_USER: find_chart

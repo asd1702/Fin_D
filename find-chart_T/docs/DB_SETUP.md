@@ -30,6 +30,7 @@ DATABASE_URL=postgresql://find_chart:1234@localhost:5432/find_chart?schema=marke
 ```
 
 `market` schema는 Prisma migration과 Continuous Aggregate SQL이 사용하는 실제 schema입니다. 실제 `.env`와 secret은 커밋하지 않습니다.
+Host의 `5432`가 이미 사용 중이면 `POSTGRES_PORT`와 `DATABASE_URL`의 port를 같은 값(예: `5433`)으로 변경합니다.
 
 TimescaleDB healthcheck가 healthy 상태가 되면 Prisma Client와 migration을 적용합니다.
 
