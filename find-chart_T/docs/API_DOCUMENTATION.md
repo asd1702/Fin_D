@@ -27,11 +27,20 @@ GET /api/candles/:symbol/:timeframe
 
 | 항목 | 설명 |
 | --- | --- |
-| `symbol` | 조회할 심볼. 예: `AAPL`, `QQQ`, `BTC/USD` |
+| `symbol` | 1~20자의 영문자, 숫자, `.`, `-`, `_`, `/`. 예: `AAPL`, `BRK.B`, `BTC/USD` |
 | `timeframe` | `1m`, `5m`, `15m`, `1h`, `4h`, `1D`, `1W`, `1M` |
-| `limit` | 선택 query. 기본값 `1000` |
+| `limit` | 선택 query. `1~5000` 범위의 정수, 기본값 `1000` |
 | `from` | 선택 query. epoch seconds 또는 날짜 문자열 |
 | `to` | 선택 query. epoch seconds 또는 날짜 문자열 |
+
+`from`과 `to`를 함께 전달하면 `from <= to`여야 합니다.
+`/`가 포함된 symbol은 path segment 충돌을 피하도록 URL encoding해서 전달합니다.
+
+```http
+GET /api/candles/BTC%2FUSD/1m
+```
+
+서버에서는 이를 `BTC/USD`로 처리합니다. `/api/candles/BTC/USD/1m`처럼 slash를 그대로 보내면 route segment가 분리되어 404 응답이 발생할 수 있습니다.
 
 응답 예시:
 
@@ -63,6 +72,7 @@ POST /api/aggregate/refresh
 ```
 
 1분봉 데이터를 백필한 뒤 TimescaleDB Continuous Aggregate View에 즉시 반영하고 싶을 때 사용합니다.
+`timeframe`은 `5m`, `15m`, `1h`, `4h`, `1D`, `1W`, `1M` 중 하나여야 하며, `from <= to`여야 합니다.
 
 요청 예시:
 
@@ -81,6 +91,18 @@ POST /api/aggregate/refresh
   "success": true,
   "timeframe": "5m",
   "message": "Continuous Aggregate 뷰가 새로고침되었습니다."
+}
+```
+
+### Validation 오류
+
+Chart Server의 실패 응답은 HTTP 상태와 함께 다음 공통 형식으로 전달됩니다.
+
+```json
+{
+  "success": false,
+  "errorCode": "INVALID_TIMEFRAME",
+  "message": "Unsupported timeframe."
 }
 ```
 

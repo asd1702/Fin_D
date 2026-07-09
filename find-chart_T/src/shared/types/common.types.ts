@@ -4,7 +4,7 @@ import { Request, Response, NextFunction } from 'express';
 export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
-  error?: string;
+  errorCode?: string;
   message?: string;
 }
 
@@ -35,34 +35,41 @@ export type AsyncHandler<P = unknown, ResBody = unknown, ReqBody = unknown, ReqQ
 export class AppError extends Error {
   constructor(
     public statusCode: number,
-    public message: string,
+    public errorCode: string,
+    message: string,
     public isOperational = true
   ) {
     super(message);
-    Object.setPrototypeOf(this, AppError.prototype);
+    Object.setPrototypeOf(this, new.target.prototype);
   }
 }
 
 export class BadRequestError extends AppError {
   constructor(message = 'Bad Request') {
-    super(400, message);
+    super(400, 'BAD_REQUEST', message);
+  }
+}
+
+export class ValidationError extends AppError {
+  constructor(errorCode: string, message: string) {
+    super(400, errorCode, message);
   }
 }
 
 export class UnauthorizedError extends AppError {
   constructor(message = 'Unauthorized') {
-    super(401, message);
+    super(401, 'UNAUTHORIZED', message);
   }
 }
 
 export class ForbiddenError extends AppError {
   constructor(message = 'Forbidden') {
-    super(403, message);
+    super(403, 'FORBIDDEN', message);
   }
 }
 
 export class NotFoundError extends AppError {
   constructor(message = 'Not Found') {
-    super(404, message);
+    super(404, 'NOT_FOUND', message);
   }
 }

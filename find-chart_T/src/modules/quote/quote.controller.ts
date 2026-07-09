@@ -13,7 +13,11 @@ class QuoteController {
       res.json({ success: true, data: summary });
     } catch (error) {
       logger.error('Quote summary error', { error });
-      res.status(500).json({ success: false, error: 'Failed to fetch quote summary' });
+      res.status(500).json({
+        success: false,
+        errorCode: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to fetch quote summary',
+      });
     }
   }
 
@@ -27,7 +31,11 @@ class QuoteController {
       res.json({ success: true, data: ticker });
     } catch (error) {
       logger.error('Ticker error', { error });
-      res.status(500).json({ success: false, error: 'Failed to fetch ticker data' });
+      res.status(500).json({
+        success: false,
+        errorCode: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to fetch ticker data',
+      });
     }
   }
 
@@ -42,7 +50,11 @@ class QuoteController {
       res.json({ success: true, data: quotes });
     } catch (error) {
       logger.error('Quote by category error', { error });
-      res.status(500).json({ success: false, error: 'Failed to fetch quotes by category' });
+      res.status(500).json({
+        success: false,
+        errorCode: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to fetch quotes by category',
+      });
     }
   }
 
@@ -57,13 +69,21 @@ class QuoteController {
       const quote = await quoteService.getQuote(decodedSymbol);
 
       if (!quote) {
-        return res.status(404).json({ success: false, error: `Quote not found for ${decodedSymbol}` });
+        return res.status(404).json({
+          success: false,
+          errorCode: 'NOT_FOUND',
+          message: `Quote not found for ${decodedSymbol}`,
+        });
       }
 
       res.json({ success: true, data: quote });
     } catch (error) {
       logger.error('Quote error', { error });
-      res.status(500).json({ success: false, error: 'Failed to fetch quote' });
+      res.status(500).json({
+        success: false,
+        errorCode: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to fetch quote',
+      });
     }
   }
 }

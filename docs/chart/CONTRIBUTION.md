@@ -12,6 +12,8 @@
 - REST API(`/api/candles/:symbol/:timeframe`)와 WebSocket(`/ws`) 기반 차트 데이터 제공
 - Docker 기반 실행 환경 구성
 - CandleMaker, timeframe 유틸, CandleBuffer, 핵심 API 테스트 기반 구축
+- 캔들 조회와 Aggregate refresh의 입력 검증 및 일관된 400 오류 응답 적용
+- URL encoded symbol 처리와 공통 API 실패 응답 경로 테스트 추가
 
 ## 담당 범위
 

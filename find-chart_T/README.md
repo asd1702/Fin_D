@@ -86,6 +86,8 @@ npm run typecheck
 | `GET/POST/PATCH/DELETE` | `/api/users` | 사용자 데이터 CRUD |
 
 지원 타임프레임은 `1m`, `5m`, `15m`, `1h`, `4h`, `1D`, `1W`, `1M`입니다.
+캔들 조회의 `limit`은 `1~5000` 범위의 정수이며 기본값은 `1000`입니다. 잘못된 symbol, timeframe, limit, time range는 `errorCode`를 포함한 HTTP 400 응답을 반환합니다. Aggregate refresh는 `1m`을 제외한 지원 타임프레임만 허용합니다.
+`BTC/USD`처럼 `/`를 포함한 symbol은 path에서 `BTC%2FUSD`로 URL encoding해야 합니다. 모든 실패 응답은 `{ success, errorCode, message }` 형식을 사용합니다.
 
 ## WebSocket
 

@@ -16,7 +16,9 @@ export class SummaryController {
 
     if (!summary) {
       res.status(404).json({
-        error: `No daily data found for symbol: ${symbol}`,
+        success: false,
+        errorCode: 'NOT_FOUND',
+        message: `No daily data found for symbol: ${symbol}`,
       });
       return;
     }
@@ -35,14 +37,22 @@ export class SummaryController {
     const symbolsQuery = req.query.symbols;
 
     if (!symbolsQuery) {
-      res.status(400).json({ error: 'symbols query parameter is required' });
+      res.status(400).json({
+        success: false,
+        errorCode: 'BAD_REQUEST',
+        message: 'symbols query parameter is required',
+      });
       return;
     }
 
     const symbols = symbolsQuery.split(',').map((s) => s.trim());
 
     if (symbols.length === 0) {
-      res.status(400).json({ error: 'At least one symbol is required' });
+      res.status(400).json({
+        success: false,
+        errorCode: 'BAD_REQUEST',
+        message: 'At least one symbol is required',
+      });
       return;
     }
 

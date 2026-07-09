@@ -17,7 +17,8 @@ export function errorHandler(
   if (err instanceof AppError) {
     res.status(err.statusCode).json({
       success: false,
-      error: err.message,
+      errorCode: err.errorCode,
+      message: err.message,
     });
     return;
   }
@@ -26,7 +27,8 @@ export function errorHandler(
   if (err.name === 'PrismaClientKnownRequestError') {
     res.status(400).json({
       success: false,
-      error: 'Database operation failed',
+      errorCode: 'DATABASE_OPERATION_FAILED',
+      message: 'Database operation failed.',
     });
     return;
   }
@@ -35,8 +37,8 @@ export function errorHandler(
   if (err.name === 'ZodError') {
     res.status(400).json({
       success: false,
-      error: 'Validation failed',
-      details: err,
+      errorCode: 'VALIDATION_FAILED',
+      message: 'Validation failed.',
     });
     return;
   }
@@ -44,8 +46,9 @@ export function errorHandler(
   // 알 수 없는 에러
   res.status(500).json({
     success: false,
-    error: process.env.NODE_ENV === 'production' 
-      ? 'Internal server error' 
+    errorCode: 'INTERNAL_SERVER_ERROR',
+    message: process.env.NODE_ENV === 'production'
+      ? 'Internal server error.'
       : err.message,
   });
 }
@@ -53,6 +56,7 @@ export function errorHandler(
 export function notFoundHandler(req: Request, res: Response): void {
   res.status(404).json({
     success: false,
-    error: `Cannot ${req.method} ${req.path}`,
+    errorCode: 'NOT_FOUND',
+    message: `Cannot ${req.method} ${req.path}`,
   });
 }

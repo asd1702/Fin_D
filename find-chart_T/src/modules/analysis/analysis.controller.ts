@@ -125,7 +125,11 @@ export class AnalysisController {
       res.status(200).json(result);
     } catch (error) {
       if (error instanceof Error && error.message.includes('No daily candle data')) {
-        res.status(404).json({ error: error.message });
+        res.status(404).json({
+          success: false,
+          errorCode: 'NOT_FOUND',
+          message: error.message,
+        });
         return;
       }
       throw error;
@@ -166,7 +170,11 @@ export class AnalysisController {
       res.status(200).json(result);
     } catch (error) {
       if (error instanceof Error) {
-        res.status(404).json({ error: error.message });
+        res.status(404).json({
+          success: false,
+          errorCode: 'NOT_FOUND',
+          message: error.message,
+        });
         return;
       }
       throw error;
@@ -184,7 +192,11 @@ export class AnalysisController {
     const symbolsParam = req.query.symbols;
     
     if (!symbolsParam) {
-      res.status(400).json({ error: 'symbols query parameter is required' });
+      res.status(400).json({
+        success: false,
+        errorCode: 'BAD_REQUEST',
+        message: 'symbols query parameter is required',
+      });
       return;
     }
 
@@ -215,7 +227,11 @@ export class AnalysisController {
       }
     } catch (error) {
       if (error instanceof Error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({
+          success: false,
+          errorCode: 'INTERNAL_SERVER_ERROR',
+          message: error.message,
+        });
         return;
       }
       throw error;
@@ -236,7 +252,11 @@ export class AnalysisController {
       res.status(200).json(result);
     } catch (error) {
       if (error instanceof Error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({
+          success: false,
+          errorCode: 'INTERNAL_SERVER_ERROR',
+          message: error.message,
+        });
         return;
       }
       throw error;

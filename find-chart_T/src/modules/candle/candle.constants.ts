@@ -15,6 +15,13 @@ export type DailyTimeframe = typeof DAILY_TIMEFRAMES[number];
 
 export const VALID_TIMEFRAME_KEYS = [...Object.keys(TIMEFRAME_MAP), ...DAILY_TIMEFRAMES];
 export const AGG_TIMEFRAMES = [5, 15, 60, 240]; // 집계 대상 타임프레임 (분)
+export const AGGREGATE_REFRESH_TIMEFRAMES = [
+  '5m',
+  '15m',
+  '1h',
+  '4h',
+  ...DAILY_TIMEFRAMES,
+] as const;
 
 /**
  * 일봉/주봉/월봉 타임프레임인지 확인

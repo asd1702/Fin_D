@@ -1,7 +1,13 @@
 import { Request, Response } from 'express';
 import { candleService } from './candle.service';
-import { parseTimeframe } from './candle.constants';
-import { toEpochSec } from '../../shared';
+import {
+  parseAggregateTimeframe,
+  parseCandleTimeframe,
+  parseLimit,
+  parseOptionalTime,
+  parseSymbol,
+  validateTimeRange,
+} from './candle.validation';
 import { 
   GetCandlesParams, 
   GetCandlesQuery
@@ -15,10 +21,12 @@ export class CandleController {
     req: Request<GetCandlesParams, unknown, unknown, GetCandlesQuery>,
     res: Response
   ): Promise<void> {
-    const { symbol, timeframe } = req.params;
-    const limit = parseInt(req.query.limit ?? '1000', 10);
-    const from = toEpochSec(req.query.from);
-    const to = toEpochSec(req.query.to);
+    const symbol = parseSymbol(req.params.symbol);
+    const timeframe = parseCandleTimeframe(req.params.timeframe);
+    const limit = parseLimit(req.query.limit);
+    const from = parseOptionalTime(req.query.from);
+    const to = parseOptionalTime(req.query.to);
+    validateTimeRange(from, to);
 
     const result = await candleService.getCandles(symbol, timeframe, {
       limit,
@@ -46,15 +54,10 @@ export class CandleController {
     req: Request<unknown, unknown, { timeframe: string; from?: string | number; to?: string | number }>,
     res: Response
   ): Promise<void> {
-    const { timeframe, from, to } = req.body;
-
-    if (!timeframe) {
-      res.status(400).json({ error: 'timeframe이 필요합니다.' });
-      return;
-    }
-
-    const startEpochSec = toEpochSec(from);
-    const endEpochSec = toEpochSec(to);
+    const timeframe = parseAggregateTimeframe(req.body.timeframe);
+    const startEpochSec = parseOptionalTime(req.body.from);
+    const endEpochSec = parseOptionalTime(req.body.to);
+    validateTimeRange(startEpochSec, endEpochSec);
 
     await candleService.refreshContinuousAggregate(
       timeframe,
