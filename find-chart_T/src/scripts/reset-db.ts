@@ -1,4 +1,9 @@
-import { prisma } from '../shared';
+import { PrismaClient } from '@prisma/client';
+import { assertDestructiveDbScriptAllowed } from './script-safety';
+
+assertDestructiveDbScriptAllowed('reset-db');
+
+const prisma = new PrismaClient();
 
 async function reset() {
   console.log('🗑️ DB 데이터 전체 삭제 시작...');

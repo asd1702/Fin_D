@@ -51,6 +51,8 @@ npm run dev
 
 TimescaleDB Continuous Aggregates는 `prisma/migrations/continuous_aggregates.sql`에 정리되어 있습니다. 백필이나 초기 데이터 적재 후에는 필요에 따라 해당 SQL 또는 `POST /api/aggregate/refresh`를 사용해 집계 뷰를 갱신합니다.
 
+DB 초기화, migration, Continuous Aggregate, backfill 절차는 [DB Setup](docs/DB_SETUP.md)을 참고하세요. 파괴적인 reset/setup 스크립트는 local development DB 전용 guard가 적용되어 있습니다.
+
 ### Test
 
 ```bash

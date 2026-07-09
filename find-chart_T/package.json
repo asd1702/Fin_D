@@ -12,6 +12,8 @@
     "start": "dotenv -e .env -- ts-node src/server.ts",
     "dev": "nodemon --watch src --ignore src/scripts --ext ts --exec \"dotenv -e .env -- ts-node src/server.ts\"",
     "reset": "dotenv -e .env -- ts-node src/scripts/reset-db.ts",
+    "db:reset:dev": "dotenv -e .env -- ts-node src/scripts/reset-db.ts",
+    "db:setup:dev": "dotenv -e .env -- ts-node src/scripts/setup-ec2-db.ts",
     "seed": "dotenv -e .env -- ts-node src/scripts/seed-historical.ts",
     "seed:symbol": "dotenv -e .env -- ts-node src/scripts/seed-historical.ts --symbol",
     "fill-gaps": "dotenv -e .env -- tsx src/scripts/fill-gaps.ts",

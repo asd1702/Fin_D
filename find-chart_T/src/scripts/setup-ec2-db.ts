@@ -3,6 +3,9 @@
  * Prisma migrate를 우회하고 직접 SQL을 실행합니다.
  */
 import { PrismaClient } from '@prisma/client';
+import { assertDestructiveDbScriptAllowed } from './script-safety';
+
+assertDestructiveDbScriptAllowed('setup-ec2-db');
 
 const prisma = new PrismaClient();
 
