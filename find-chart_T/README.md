@@ -43,6 +43,7 @@ flowchart TB
 
 ```bash
 npm install
+npm run db:up
 cp .env.example .env
 npm run prisma:generate
 npm run migrate:deploy
@@ -51,7 +52,7 @@ npm run dev
 
 TimescaleDB Continuous Aggregates는 `prisma/migrations/continuous_aggregates.sql`에 정리되어 있습니다. 백필이나 초기 데이터 적재 후에는 필요에 따라 해당 SQL 또는 `POST /api/aggregate/refresh`를 사용해 집계 뷰를 갱신합니다.
 
-DB 초기화, migration, Continuous Aggregate, backfill 절차는 [DB Setup](docs/DB_SETUP.md)을 참고하세요. 파괴적인 reset/setup 스크립트는 local development DB 전용 guard가 적용되어 있습니다.
+Local TimescaleDB는 `npm run db:up`으로 실행합니다. 기본 비밀번호 `1234`는 local development 전용이며 실제 `.env`는 커밋하지 않습니다. migration, Continuous Aggregate, backfill, 종료 절차는 [DB Setup](docs/DB_SETUP.md)을 참고하세요.
 
 ### Test
 
