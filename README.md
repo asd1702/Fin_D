@@ -1,123 +1,90 @@
 # Fin:D
 
-기업 재무데이터, 뉴스, 실시간 시장 데이터, AI 질의응답을 결합한 금융 분석 서비스입니다.
+[![Chart Server CI](https://github.com/asd1702/Fin_D/actions/workflows/chart-server-ci.yml/badge.svg)](https://github.com/asd1702/Fin_D/actions/workflows/chart-server-ci.yml)
 
-사용자는 대시보드와 기업 상세 화면에서 재무 정보와 차트 데이터를 확인하고, AI 챗봇을 통해 투자 관련 질문에 대한 데이터 기반 응답을 받을 수 있습니다.
+Fin:D는 금융 뉴스, 기업 정보, 실시간 시장 데이터를 통합해 투자 판단에 필요한 정보를 제공하는 금융 데이터 분석 서비스입니다.
 
-> 팀 프로젝트 · 금융 데이터 분석 서비스 · Frontend / Backend API / Agent API / Chart Server 모노레포
-
----
-
-## 서비스 개요
-
-Fin:D는 금융 데이터를 다양한 관점에서 조회하고 분석할 수 있도록 구성된 서비스입니다.
-
-- **Frontend**: 대시보드, 기업 상세, 차트, AI 챗봇 UI 제공
-- **Backend API**: 인증, 기업 재무데이터, 뉴스, 사용자 데이터 처리
-- **Agent API**: AI 챗봇과 MCP-style tool registry 기반 데이터 조회
-- **Chart Server**: 실시간 시장 데이터 수신, 캔들 생성, 차트 API/WebSocket 제공
-
----
+사용자는 대시보드와 기업 상세 화면에서 재무·뉴스·차트 데이터를 확인하고, 팀에서 구현한 AI 질의응답 기능으로 기업과 시장 데이터를 탐색할 수 있습니다.
 
 ## 전체 아키텍처
 
 ```mermaid
 flowchart TB
     user["User"] --> front["Frontend<br/>React + Vite"]
-
-    front --> backend["Backend API<br/>FastAPI<br/>재무데이터 / 뉴스 / 인증"]
-    front --> agent["Agent API<br/>FastAPI + OpenAI<br/>AI 챗봇 / MCP Tools"]
-    front --> chart["Chart Server<br/>Node.js + Express + ws<br/>실시간 차트 데이터"]
+    front --> backend["Backend / Agent API<br/>FastAPI"]
+    front --> chart["Chart Server<br/>Node.js + Express + ws"]
 
     backend --> mysql[("MySQL / RDS")]
-    agent --> mysql
+    backend --> external["FMP / OpenAI"]
 
-    backend --> fmp["FMP API"]
-    agent --> openai["OpenAI API"]
-
-    chart --> td["TwelveData<br/>WebSocket / REST API"]
+    chart --> td["TwelveData WebSocket / API"]
     chart --> tsdb[("PostgreSQL + TimescaleDB")]
     tsdb --> ca["Continuous Aggregates<br/>5m / 15m / 1h / 4h / 1D / 1W / 1M"]
 
-    chart --> chartRest["REST API<br/>/api/candles"]
-    chart --> chartWs["WebSocket<br/>/ws"]
-
-    chartRest --> front
-    chartWs --> front
+    chart --> rest["REST /api/candles"]
+    chart --> socket["WebSocket /ws"]
+    rest --> front
+    socket --> front
 ```
 
----
-
-## 서비스 구성
-
-| 모듈 | 역할 | 주요 기술 | 담당 |
+| Module | Role | 주요 기술 | 담당 |
 | --- | --- | --- | --- |
-| `find-front_T` | 대시보드, 기업 상세, 차트, AI 챗봇 UI | React, TypeScript, Vite | 팀 |
-| `find-backend_T` | 인증, 기업 재무데이터, 뉴스, 사용자 데이터 API | FastAPI, SQLAlchemy, MySQL/RDS | 팀 |
-| `find-backend_T` Agent | AI 챗봇, MCP-style tool 기반 데이터 조회 | FastAPI, OpenAI SDK | 팀 |
-| `find-chart_T` | 실시간 가격 수신, 캔들 생성, 차트 API/WebSocket 제공 | Node.js, TypeScript, TimescaleDB | @asd1702 |
-
----
+| `find-front_T` | 대시보드, 기업 상세, 차트, AI 질의응답 UI | React, TypeScript, Vite | Team |
+| `find-backend_T` | 인증, 재무·뉴스 데이터 API, AI 질의응답 연동 | FastAPI, SQLAlchemy, MySQL/RDS | Team |
+| `find-chart_T` | 실시간 가격 수신, 캔들 저장·조회, 실시간 차트 데이터 제공 | Node.js, TypeScript, TimescaleDB | @asd1702 |
 
 ## 주요 기능
 
-### 금융 데이터 조회
+- 기업 프로필, 재무제표, 주요 지표와 뉴스 조회
+- 사용자 즐겨찾기와 일정 관리
+- AI 질의응답을 통한 기업·시장 데이터 탐색
+- 실시간 가격과 1분봉 OHLCV 캔들 제공
+- TimescaleDB Continuous Aggregates 기반 다중 timeframe 조회
 
-- 기업 프로필 조회
-- 재무제표 조회
-- 주요 지표 조회
-- 뉴스 조회
-- 사용자 즐겨찾기 및 일정 관리
+## My Contribution - Chart Server
 
-### AI 질의응답
+- TwelveData WebSocket 기반 실시간 가격 데이터 수신
+- tick 데이터를 1분봉 OHLCV candle로 변환하고 buffer로 batch 저장
+- TimescaleDB와 Continuous Aggregates 기반 `1m`~`1M` 조회 구조 구성
+- REST Candle API와 WebSocket tick/candle 데이터 제공
+- WebSocket을 client별 symbol subscription 구조로 개선하고 heartbeat cleanup 추가
+- API validation, 공통 실패 응답, DB destructive script guard 보강
+- Vitest, strict typecheck, multi-stage Docker, dependency audit, GitHub Actions CI 구성
 
-- 사용자의 투자 관련 질문 처리
-- 등록된 도구를 활용한 기업/시장 데이터 조회
-- 데이터 기반 응답 및 위젯 렌더링 지원
+자세한 담당 범위와 설계 판단은 [Chart Server Contribution](docs/chart/CONTRIBUTION.md)에 정리했습니다.
 
-### 실시간 차트 데이터
+## 품질 검증
 
-- TwelveData 기반 실시간 가격 데이터 수신
-- tick 데이터를 1분봉 OHLCV 캔들로 변환
-- TimescaleDB 기반 시계열 데이터 저장
-- Continuous Aggregates 기반 상위 타임프레임 조회
-- REST API와 WebSocket을 통한 프론트엔드 차트 데이터 제공
-
----
+| 항목 | 결과 |
+| --- | --- |
+| Automated tests | 6 files, 63 tests passed |
+| TypeScript | strict typecheck passed |
+| Dependency audit | 전체/production 0 vulnerabilities |
+| Build | TypeScript 및 production Docker build passed |
+| Local DB | TimescaleDB health, Prisma migration, Continuous Aggregates 검증 |
+| CI | GitHub Actions Chart Server workflow passed |
 
 ## Tech Stack
 
 | 영역 | 기술 |
 | --- | --- |
 | Frontend | React, TypeScript, Vite, React Query, Zustand |
-| Backend API | Python, FastAPI, SQLAlchemy, MySQL/RDS |
-| Agent API | FastAPI, OpenAI SDK, MCP-style tool registry |
+| Backend / Agent API | Python, FastAPI, SQLAlchemy, MySQL/RDS, OpenAI SDK |
 | Chart Server | Node.js, TypeScript, Express, ws, Prisma |
 | Time-Series DB | PostgreSQL, TimescaleDB, Continuous Aggregates |
-| External APIs | FMP, TwelveData, OpenAI |
-| Infra | Docker, docker-compose |
+| Infra / Quality | Docker, Docker Compose, Vitest, GitHub Actions |
 
----
+## 실행
 
-## 실행 방법
-
-각 모듈은 독립적으로 실행됩니다.
-
-| 모듈 | 진입점 | 기본 포트 |
-| --- | --- | --- |
-| Frontend | `find-front_T` | Vite dev server |
-| Backend API | `find-backend_T/main.py` | 8000 |
-| Agent API | `find-backend_T/agent_main.py` | 8001 |
-| Chart Server | `find-chart_T/src/server.ts` | 8080 |
-
-상세 실행 방법과 환경변수는 각 모듈 문서를 기준으로 확인합니다.
-
----
+각 모듈은 독립적으로 실행됩니다. Chart Server의 로컬 실행과 환경 구성은 [Chart Server README](find-chart_T/README.md)를 참고하세요.
 
 ## Documentation
 
 | 문서 | 내용 |
 | --- | --- |
-| [Chart Server 기여 문서](docs/chart/CONTRIBUTION.md) | Chart Server 담당 범위, 설계 의사결정, 한계와 개선 방향 |
-| [Chart Server README](find-chart_T/README.md) | Chart Server 실행 방법, 환경변수, API |
-| [Chart API 문서](find-chart_T/docs/API_DOCUMENTATION.md) | Chart Server 실제 API 명세 |
+| [Chart Server Contribution](docs/chart/CONTRIBUTION.md) | 개인 담당 범위, 설계 판단, 개선 과정과 한계 |
+| [Chart Server README](find-chart_T/README.md) | 실행, 테스트, Docker, CI |
+| [Chart API Documentation](find-chart_T/docs/API_DOCUMENTATION.md) | 실제 등록 REST API와 WebSocket protocol |
+| [DB Setup](find-chart_T/docs/DB_SETUP.md) | Local TimescaleDB, migration, DB 안전장치 |
+| [Dependency Audit](find-chart_T/docs/DEPENDENCY_AUDIT.md) | 취약점 분류와 업데이트 판단 |
+| [Docker](find-chart_T/docs/DOCKER.md) | Multi-stage production image와 smoke test |

@@ -55,6 +55,16 @@ Prisma CLI는 devDependency지만 `@prisma/client`의 peer resolution으로 prod
 
 없습니다. 업데이트 후 전체 audit과 production-only audit 모두 0건입니다. 향후 major upgrade는 기능 변경과 별도 검증이 필요한 독립 작업으로 다룹니다.
 
+## Final Verification
+
+| 항목 | 결과 |
+| --- | --- |
+| `npm audit` | 0 vulnerabilities |
+| `npm audit --omit=dev` | 0 vulnerabilities |
+| Tests | 6 files, 63 passed |
+| Typecheck / build | passed |
+| Production Docker build | passed |
+
 ## Risk Decision
 
 - Production direct dependency를 가장 먼저 처리했습니다.
@@ -63,3 +73,8 @@ Prisma CLI는 devDependency지만 `@prisma/client`의 peer resolution으로 prod
 - Prisma CLI/Client는 호환성을 위해 같은 patch version으로 유지합니다.
 - 강제 major upgrade와 `npm audit fix --force`는 사용하지 않습니다.
 - Audit 결과가 0건이어도 외부 입력 제한, timeout, redirect 정책 같은 애플리케이션 수준 방어는 계속 필요합니다.
+
+## Related Documents
+
+- [Chart Server README](../README.md)
+- [Docker](DOCKER.md)

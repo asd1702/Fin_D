@@ -84,3 +84,11 @@ npm run migrate:deploy
 ```
 
 자세한 local DB 및 Continuous Aggregate 절차는 [DB Setup](DB_SETUP.md)을 참고하세요.
+
+GitHub Actions는 실제 secret이나 DB 연결 없이 동일한 production image build를 검증합니다. Runtime `/` 및 `/health` smoke test는 local TimescaleDB 환경에서 별도로 통과했습니다.
+
+## Related Documents
+
+- [Chart Server README](../README.md)
+- [DB Setup](DB_SETUP.md)
+- [Dependency Audit](DEPENDENCY_AUDIT.md)

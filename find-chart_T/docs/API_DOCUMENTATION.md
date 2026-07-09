@@ -222,3 +222,9 @@ ws://<host>:<port>/ws
 
 - `/api/auth`: 현재 Chart Server 라우터에 등록되어 있지 않습니다.
 - `/api/alerts`: Prisma 모델은 있지만 현재 Chart Server 라우터에 등록되어 있지 않습니다.
+
+## Related Documents
+
+- [Chart Server README](../README.md)
+- [DB Setup](DB_SETUP.md)
+- [Docker](DOCKER.md)

@@ -50,6 +50,15 @@ docker exec -i find-chart-timescaledb \
 
 이 SQL은 기존 Continuous Aggregate materialized view를 drop 후 다시 생성하고 전체 refresh를 수행합니다. 운영 또는 공유 DB에서는 백업, 영향 범위, 실행 시간을 검토한 승인된 변경 작업으로만 실행해야 합니다.
 
+### Local Verification
+
+포트 충돌을 피하기 위해 host `5433`을 사용한 local 검증 결과입니다.
+
+- TimescaleDB healthcheck: healthy
+- Prisma migration 7개 적용 성공
+- Continuous Aggregate 7개 생성 및 refresh policy 확인
+- pending migration 없음
+
 ## Local DB 상태와 종료
 
 ```bash
@@ -117,3 +126,9 @@ CONFIRM_DB_RESET=YES npm run db:setup:dev
 - `npm test` 통과
 - `npm run typecheck` 통과
 - destructive script를 배포 및 운영 절차에서 실행하지 않음
+
+## Related Documents
+
+- [Chart Server README](../README.md)
+- [Docker](DOCKER.md)
+- [Dependency Audit](DEPENDENCY_AUDIT.md)
