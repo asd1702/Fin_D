@@ -58,6 +58,8 @@ npm test
 npm run typecheck
 ```
 
+Vitest 회귀 테스트와 strict TypeScript typecheck를 모두 통과합니다.
+
 ## Environment Variables
 
 | 변수 | 설명 |

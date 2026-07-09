@@ -51,5 +51,6 @@
 
 - WebSocket client별 symbol 구독/해제와 통합 테스트를 추가했으며 TwelveData upstream 구독은 정적 설정 유지
 - Vitest 기반 REST/WebSocket 핵심 회귀 테스트를 구축
+- Prisma Client 재생성과 stale module export 정리로 strict typecheck 통과
 - Dockerfile은 프로덕션 빌드 최적화가 필요
 - DB 초기화 스크립트와 Prisma migration/TimescaleDB SQL 정리가 필요
