@@ -1,4 +1,5 @@
-import { ValidationError, toEpochSec } from '../../shared';
+import { ValidationError } from '../../shared/types/common.types';
+import { toEpochSec } from '../../shared/utils/time.util';
 import {
   AGGREGATE_REFRESH_TIMEFRAMES,
   validateTimeframe,

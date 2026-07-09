@@ -16,6 +16,18 @@ export interface PriceTickMessage {
 
 export type OutboundSocketMessage = CandleSubscriptionMessage | PriceTickMessage;
 
+export interface SubscribeMessage {
+  type: 'subscribe';
+  symbols: string[];
+}
+
+export interface UnsubscribeMessage {
+  type: 'unsubscribe';
+  symbols: string[];
+}
+
+export type InboundSocketMessage = SubscribeMessage | UnsubscribeMessage;
+
 // TwelveData 관련 타입
 export interface TwelveDataPriceMessage {
   event: 'price';

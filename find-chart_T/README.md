@@ -22,7 +22,7 @@ flowchart TB
     db --> ca["Continuous Aggregates<br/>5m / 15m / 1h / 4h / 1D / 1W / 1M"]
     api["Express REST API"] --> db
     api --> ca
-    provider --> ws["WebSocket /ws<br/>tick broadcast"]
+    provider --> ws["WebSocket /ws<br/>symbol subscription"]
     maker --> ws
     ws --> front["Frontend Chart"]
     api --> front
@@ -92,11 +92,21 @@ npm run typecheck
 ## WebSocket
 
 - endpoint: `/ws`
-- server message type: `tick`, `candle`
+- 연결 직후 기본 구독은 없으며 `welcome` 메시지를 수신합니다.
+- 클라이언트는 `subscribe`/`unsubscribe`로 symbol별 수신 범위를 관리합니다.
+- server message type: `welcome`, `subscribed`, `unsubscribed`, `tick`, `candle`, `error`
 - `tick`: TwelveData 실시간 가격 수신 시 브로드캐스트
 - `candle`: 1분봉 완성 시 브로드캐스트
-- 현재는 연결된 클라이언트 전체 브로드캐스트 중심입니다.
-- 심볼별 구독/해제 프로토콜은 개선 예정입니다.
+- 구독하지 않은 symbol의 `tick`/`candle`은 수신하지 않습니다.
+- `BTC/USD`는 WebSocket JSON에서 URL encoding 없이 그대로 사용합니다.
+
+```json
+{ "type": "subscribe", "symbols": ["AAPL", "BTC/USD"] }
+```
+
+```json
+{ "type": "unsubscribe", "symbols": ["AAPL"] }
+```
 
 예시:
 
@@ -137,6 +147,6 @@ npm run typecheck
 ## Current Limitations
 
 - CandleMaker, timeframe 유틸, CandleBuffer, 핵심 API의 테스트 기반을 구축했습니다.
-- WebSocket 심볼별 구독/해제 프로토콜은 아직 구현되지 않았습니다.
+- WebSocket filtering은 client-side 구독 기준이며 TwelveData upstream 구독은 정적입니다.
 - Dockerfile은 프로덕션 빌드 최적화가 필요합니다.
 - DB migration과 TimescaleDB 초기화 SQL 정리가 필요합니다.

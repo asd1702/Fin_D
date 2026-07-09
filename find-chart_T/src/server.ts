@@ -3,6 +3,7 @@ import http from 'http';
 import { createApp } from './app';
 import {
   initWebSocketServer,
+  closeWebSocketServer,
   connectToTwelveData,
   syncMissingData
 } from './modules/realtime';
@@ -41,6 +42,8 @@ httpServer.listen(port, async () => {
 // Graceful Shutdown 처리
 const shutdown = async (signal: string) => {
   logger.info(`Received ${signal}. Shutting down gracefully...`);
+
+  await closeWebSocketServer();
 
   httpServer.close(() => {
     logger.info('HTTP server closed.');

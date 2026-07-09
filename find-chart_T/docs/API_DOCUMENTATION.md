@@ -164,7 +164,27 @@ Chart Server 코드에는 사용자 CRUD 라우트가 등록되어 있습니다.
 ws://<host>:<port>/ws
 ```
 
-서버가 클라이언트로 브로드캐스트하는 주요 메시지는 다음과 같습니다.
+연결 직후 기본 구독은 없으며 서버가 다음 메시지를 전송합니다.
+
+```json
+{
+  "type": "welcome",
+  "message": "Connected to Chart WebSocket.",
+  "subscriptionRequired": true
+}
+```
+
+클라이언트는 symbol을 명시적으로 구독하거나 해제해야 합니다.
+
+```json
+{ "type": "subscribe", "symbols": ["AAPL", "BTC/USD"] }
+```
+
+```json
+{ "type": "unsubscribe", "symbols": ["AAPL"] }
+```
+
+서버는 각각 `subscribed`, `unsubscribed` 메시지로 처리된 symbol을 응답합니다. 구독하지 않은 symbol의 `tick`과 `candle`은 전송하지 않습니다.
 
 ```json
 { "type": "tick", "symbol": "BTC/USD", "price": 100.12, "timestamp": 1731400000 }
@@ -186,7 +206,17 @@ ws://<host>:<port>/ws
 }
 ```
 
-현재 WebSocket은 전체 브로드캐스트 중심입니다. 클라이언트별 심볼 구독/해제 프로토콜은 별도 개선 대상입니다.
+잘못된 메시지는 연결을 유지한 채 오류로 응답합니다.
+
+```json
+{
+  "type": "error",
+  "errorCode": "INVALID_WS_MESSAGE",
+  "message": "Invalid WebSocket message."
+}
+```
+
+`BTC/USD`는 WebSocket JSON에서는 그대로 사용합니다. URL encoding한 `BTC%2FUSD`가 필요한 곳은 REST path parameter뿐입니다. 현재 filtering은 Chart Server client별 구독에 적용되며 TwelveData upstream symbol 구독은 정적 설정을 유지합니다.
 
 ## 문서에서 제외한 API
 

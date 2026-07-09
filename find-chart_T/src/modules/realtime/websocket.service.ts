@@ -1,76 +1,227 @@
-/**
- * WebSocket Service
- * 
- * PubSub 인터페이스를 통해 메시지를 수신하고 클라이언트에게 브로드캐스트.
- * - 구현체가 Memory든 Redis든 상관없이 동일하게 동작
- * - 추후 Redis로 교체 시 이 파일 수정 불필요
- */
-
-import { WebSocket, WebSocketServer } from 'ws';
 import http from 'http';
+import { WebSocket, WebSocketServer } from 'ws';
+import { parseSymbol } from '../candle/candle.validation';
+import { ValidationError } from '../../shared/types/common.types';
 import { pubSubService } from './pubsub.factory';
-import { OutboundSocketMessage } from './realtime.types';
+import {
+  InboundSocketMessage,
+  OutboundSocketMessage,
+} from './realtime.types';
 
-let wss: WebSocketServer | undefined;
+interface ClientSubscription {
+  symbols: Set<string>;
+  isAlive: boolean;
+}
 
-/**
- * WebSocket 서버 초기화 (프론트엔드 클라이언트용)
- */
-export function initWebSocketServer(httpServer: http.Server): void {
-  wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+interface WebSocketServiceOptions {
+  heartbeatIntervalMs?: number;
+}
 
-  wss.on('connection', (ws) => {
-    console.log('[Frontend] 클라이언트가 WebSocket으로 연결되었습니다.');
+const WELCOME_MESSAGE = {
+  type: 'welcome',
+  message: 'Connected to Chart WebSocket.',
+  subscriptionRequired: true,
+} as const;
 
-    ws.on('message', (message) => {
-      // TODO: 구독 요청 처리 (특정 심볼만 구독)
-      console.log('수신 메시지:', message.toString());
+export class WebSocketService {
+  private readonly wss: WebSocketServer;
+  private readonly clients = new Map<WebSocket, ClientSubscription>();
+  private heartbeatInterval: NodeJS.Timeout | null = null;
+
+  constructor(
+    httpServer: http.Server,
+    options: WebSocketServiceOptions = {}
+  ) {
+    this.wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+    this.wss.on('connection', (ws) => this.handleConnection(ws));
+
+    const heartbeatIntervalMs = options.heartbeatIntervalMs ?? 30_000;
+    this.heartbeatInterval = setInterval(
+      () => this.checkConnections(),
+      heartbeatIntervalMs
+    );
+    this.heartbeatInterval.unref();
+  }
+
+  private handleConnection(ws: WebSocket): void {
+    this.clients.set(ws, {
+      symbols: new Set(),
+      isAlive: true,
+    });
+    this.send(ws, WELCOME_MESSAGE);
+
+    ws.on('pong', () => {
+      const client = this.clients.get(ws);
+      if (client) client.isAlive = true;
+    });
+
+    ws.on('message', (data) => {
+      this.handleClientMessage(ws, data.toString());
     });
 
     ws.on('close', () => {
-      console.log('[Frontend] 클라이언트 연결이 끊어졌습니다.');
+      this.clients.delete(ws);
     });
 
-    ws.on('error', (err) => {
-      console.error('[Frontend] WebSocket 오류:', err);
+    ws.on('error', (error) => {
+      console.error('[Frontend] WebSocket 오류:', error);
     });
-  });
+  }
 
-  // ✅ PubSub 구독: 메시지가 오면 로컬 클라이언트에게 브로드캐스트
-  pubSubService.subscribe((message) => {
-    broadcastLocal(message);
-  });
-}
-
-/**
- * 로컬 WebSocket 클라이언트에게만 메시지 전송
- * (이 서버에 직접 연결된 클라이언트만)
- */
-function broadcastLocal(message: OutboundSocketMessage): void {
-  if (!wss) return;
-  
-  const data = JSON.stringify(message);
-  
-  wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(data);
+  private handleClientMessage(ws: WebSocket, rawMessage: string): void {
+    let message: unknown;
+    try {
+      message = JSON.parse(rawMessage);
+    } catch {
+      this.sendError(
+        ws,
+        'INVALID_WS_MESSAGE',
+        'Invalid WebSocket message.'
+      );
+      return;
     }
-  });
+
+    if (!this.isSubscriptionMessage(message)) {
+      this.sendError(
+        ws,
+        'INVALID_WS_MESSAGE',
+        'Invalid WebSocket message.'
+      );
+      return;
+    }
+
+    let symbols: string[];
+    try {
+      symbols = message.symbols.map(parseSymbol);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        this.sendError(ws, error.errorCode, error.message);
+        return;
+      }
+      throw error;
+    }
+
+    const client = this.clients.get(ws);
+    if (!client) return;
+
+    if (message.type === 'subscribe') {
+      symbols.forEach((symbol) => client.symbols.add(symbol));
+      this.send(ws, { type: 'subscribed', symbols: [...new Set(symbols)] });
+      return;
+    }
+
+    symbols.forEach((symbol) => client.symbols.delete(symbol));
+    this.send(ws, { type: 'unsubscribed', symbols: [...new Set(symbols)] });
+  }
+
+  private isSubscriptionMessage(
+    message: unknown
+  ): message is InboundSocketMessage {
+    if (!message || typeof message !== 'object') return false;
+
+    const candidate = message as Partial<InboundSocketMessage>;
+    return (
+      (candidate.type === 'subscribe' || candidate.type === 'unsubscribe') &&
+      Array.isArray(candidate.symbols) &&
+      candidate.symbols.length > 0 &&
+      candidate.symbols.every((symbol) => typeof symbol === 'string')
+    );
+  }
+
+  broadcastLocal(message: OutboundSocketMessage): void {
+    const symbol =
+      'symbol' in message ? message.symbol : message.candle.symbol;
+    const data = JSON.stringify(message);
+
+    for (const [ws, client] of this.clients) {
+      if (
+        ws.readyState === WebSocket.OPEN &&
+        client.symbols.has(symbol)
+      ) {
+        ws.send(data);
+      }
+    }
+  }
+
+  private checkConnections(): void {
+    for (const [ws, client] of this.clients) {
+      if (!client.isAlive) {
+        this.clients.delete(ws);
+        ws.terminate();
+        continue;
+      }
+
+      client.isAlive = false;
+      ws.ping();
+    }
+  }
+
+  private send(ws: WebSocket, message: object): void {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(message));
+    }
+  }
+
+  private sendError(
+    ws: WebSocket,
+    errorCode: string,
+    message: string
+  ): void {
+    this.send(ws, { type: 'error', errorCode, message });
+  }
+
+  getClientCount(): number {
+    return this.clients.size;
+  }
+
+  async destroy(): Promise<void> {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+
+    for (const ws of this.clients.keys()) {
+      ws.terminate();
+    }
+    this.clients.clear();
+
+    await new Promise<void>((resolve, reject) => {
+      this.wss.close((error) => {
+        if (error) reject(error);
+        else resolve();
+      });
+    });
+  }
 }
 
-/**
- * 외부에서 호출하는 브로드캐스트 함수
- * - PubSub을 통해 발행하면 모든 서버(현재는 단일)가 수신
- */
+let webSocketService: WebSocketService | undefined;
+let pubSubSubscribed = false;
+
+export function initWebSocketServer(httpServer: http.Server): void {
+  webSocketService = new WebSocketService(httpServer);
+
+  if (!pubSubSubscribed) {
+    pubSubService.subscribe((message) => {
+      webSocketService?.broadcastLocal(message);
+    });
+    pubSubSubscribed = true;
+  }
+}
+
 export function broadcast(message: OutboundSocketMessage): void {
-  pubSubService.publish(message).catch((err) => {
-    console.error('❌ [WebSocket] 브로드캐스트 실패:', err);
+  pubSubService.publish(message).catch((error) => {
+    console.error('[WebSocket] 브로드캐스트 실패:', error);
   });
 }
 
-/**
- * 연결된 클라이언트 수 반환
- */
 export function getClientCount(): number {
-  return wss?.clients.size ?? 0;
+  return webSocketService?.getClientCount() ?? 0;
+}
+
+export async function closeWebSocketServer(): Promise<void> {
+  if (!webSocketService) return;
+
+  const service = webSocketService;
+  webSocketService = undefined;
+  await service.destroy();
 }
