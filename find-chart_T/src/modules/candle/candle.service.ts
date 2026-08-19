@@ -96,7 +96,7 @@ export class CandleService {
 
   /**
    * 1분봉 저장 (단일)
-   * 참고: 실시간 데이터는 CandleBuffer를 통해 배치 저장됩니다.
+   * 참고: 실시간 데이터는 RocksDB pending store를 거쳐 배치 저장됩니다.
    */
   async save1mCandle(candle: Candle): Promise<void> {
     await candleRepository.save1mCandle(candle);

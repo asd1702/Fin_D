@@ -1,2 +1,2 @@
 // Scheduler Module
-export { initScheduler, isSchedulerActive } from './cron.service';
+export { initScheduler, isSchedulerActive, stopScheduler } from './cron.service';

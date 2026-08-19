@@ -33,6 +33,9 @@ const env = cleanEnv(process.env, {
 
   // CORS (선택)
   CORS_ORIGIN: str({ default: 'http://localhost:3000' }),
+
+  // Durable candle queue
+  ROCKSDB_PATH: str({ default: './data/rocksdb/candles' }),
 });
 
 const config = {
@@ -57,6 +60,9 @@ const config = {
 
   // CORS
   CORS_ORIGIN: env.CORS_ORIGIN.split(','),
+
+  // Durable candle queue
+  ROCKSDB_PATH: env.ROCKSDB_PATH,
 } as const;
 
 export default config;
