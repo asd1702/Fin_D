@@ -4,13 +4,14 @@
  * WebSocket 미지원 데이터(환율, 에너지, 금속 등)를 주기적으로 수집합니다.
  * - Time Series API 사용 (정확한 OHLC 데이터)
  * - 5초 딜레이로 거래소 집계 완료 대기
- * - CandleBuffer 재사용으로 저장 로직 통일
+ * - RocksDB pending store를 통한 저장 로직 통일
  */
 
 import cron from 'node-cron';
+import type { ScheduledTask } from 'node-cron';
 import axios from 'axios';
 import config from '../../config';
-import { candleBuffer } from '../candle';
+import { enqueueCandle } from '../candle/candle.persistence';
 import { fearGreedService } from '../analysis/feargreed.service';
 import { cnnFearGreedService } from '../analysis/cnnfeargreed.service';
 import { logger } from '../../shared/utils/logger';
@@ -79,6 +80,8 @@ interface TwelveDataCandle {
 }
 
 let isSchedulerRunning = false;
+let candlePollTask: ScheduledTask | null = null;
+let activeCandlePoll: Promise<void> | null = null;
 
 /**
  * 스케줄러 초기화
@@ -93,8 +96,12 @@ export function initScheduler(): void {
 
   // 매 분 5초에 실행 (거래소 집계 완료 대기)
   // "5 * * * * *" = 매 분 5초
-  cron.schedule('5 * * * * *', async () => {
-    await pollAllSymbols();
+  candlePollTask = cron.schedule('5 * * * * *', async () => {
+    const poll = pollAllSymbols();
+    activeCandlePoll = poll;
+    await poll.finally(() => {
+      if (activeCandlePoll === poll) activeCandlePoll = null;
+    });
   });
 
   // 서버 시작 시 즉시 한 번 실행 (데이터 최신화)
@@ -103,6 +110,14 @@ export function initScheduler(): void {
 
   isSchedulerRunning = true;
   logger.info('Scheduler initialized (runs at :05 every minute)');
+}
+
+export async function stopScheduler(): Promise<void> {
+  candlePollTask?.stop();
+  candlePollTask = null;
+  await activeCandlePoll;
+  isSchedulerRunning = false;
+  logger.info('Polling scheduler stopped');
 }
 
 /**
@@ -172,8 +187,7 @@ async function fetchLastCandle(symbol: string): Promise<void> {
 
     const candleTime = new Date(candle.datetime);
 
-    // CandleBuffer에 Push (기존 저장 로직 재사용)
-    candleBuffer.push({
+    await enqueueCandle({
       symbol,
       startTime: Math.floor(candleTime.getTime() / 1000),
       open: parseFloat(candle.open),
@@ -184,7 +198,7 @@ async function fetchLastCandle(symbol: string): Promise<void> {
       category: SYMBOL_CATEGORY[symbol] || 'other',
     });
 
-    logger.debug('Polled candle pushed to buffer', { 
+    logger.debug('Polled candle enqueued in RocksDB', {
       symbol, 
       time: candleTime.toISOString() 
     });

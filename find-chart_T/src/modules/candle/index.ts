@@ -4,8 +4,10 @@ export * from './candle.types';
 // Constants
 export * from './candle.constants';
 
-// Buffer
-export { candleBuffer, CandleBuffer } from './candle.buffer';
+// Durable persistence building blocks (runtime singleton lives in candle.persistence)
+export { CandleFlusher } from './candle.flusher';
+export type { PendingCandle, PendingCandleStore } from './storage/pending-candle.store';
+export { RocksPendingCandleStore } from './storage/rocks-pending-candle.store';
 
 // Repository
 export { candleRepository, CandleRepository } from './candle.repository';

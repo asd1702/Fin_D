@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 
 const mocks = vi.hoisted(() => ({
@@ -20,13 +20,8 @@ vi.mock('./modules/candle/candle.service', () => ({
 }));
 
 import { createApp } from './app';
-import { candleBuffer } from './modules/candle/candle.buffer';
 
 describe('Chart Server API', () => {
-  afterAll(async () => {
-    await candleBuffer.destroy();
-  });
-
   beforeEach(() => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     mocks.queryRaw.mockResolvedValue([{ '?column?': 1 }]);

@@ -1,6 +1,7 @@
 import WebSocket from 'ws';
 import config from '../../config';
-import { CandleMaker, candleBuffer } from '../candle';
+import { CandleMaker } from '../candle';
+import { enqueueCandle } from '../candle/candle.persistence';
 import { broadcast } from './websocket.service';
 import { logger } from '../../shared/utils/logger';
 
@@ -11,6 +12,8 @@ const candleMakers = new Map<string, CandleMaker>();
 SYMBOLS.forEach((s) => candleMakers.set(s, new CandleMaker()));
 
 let tdWs: WebSocket | null = null;
+let reconnectTimer: NodeJS.Timeout | null = null;
+let reconnectEnabled = false;
 
 // Heartbeat state
 let lastMessageTime: number = Date.now();
@@ -22,6 +25,8 @@ const DISCONNECT_TIMEOUT_MS = 60000; // 60초간 데이터 없으면 재연결
  * TwelveData WebSocket 연결
  */
 export function connectToTwelveData(): void {
+  reconnectEnabled = true;
+
   // 기존 연결 정리
   cleanup();
 
@@ -74,7 +79,12 @@ export function connectToTwelveData(): void {
   tdWs.on('close', (code) => {
     logger.warn('TwelveData WebSocket closed, reconnecting in 5s', { code });
     cleanup(); // 인터벌 정지
-    setTimeout(connectToTwelveData, 5000);
+    if (reconnectEnabled) {
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        connectToTwelveData();
+      }, 5000);
+    }
   });
 }
 
@@ -97,6 +107,10 @@ function startHeartbeatMonitor() {
 }
 
 function cleanup() {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
   if (heartbeatInterval) {
     clearInterval(heartbeatInterval);
     heartbeatInterval = null;
@@ -129,8 +143,8 @@ async function handlePriceUpdate(
   const completedCandle = maker.update(symbol, price, 0, timestamp);
 
   if (completedCandle) {
-    // 3. 메모리 버퍼에 push (Non-blocking!)
-    candleBuffer.push(completedCandle);
+    // 3. 완성된 1분봉을 durable pending store에 저장
+    await enqueueCandle(completedCandle);
 
     // 4. 프론트엔드로 1m 캨들 브로드캐스트 (즉시)
     broadcast({ type: 'candle', timeframe: '1m', candle: completedCandle });
@@ -145,5 +159,6 @@ async function handlePriceUpdate(
  * TwelveData 연결 해제
  */
 export function disconnectFromTwelveData(): void {
+  reconnectEnabled = false;
   cleanup();
 }

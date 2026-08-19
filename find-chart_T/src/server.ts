@@ -5,9 +5,11 @@ import {
   initWebSocketServer,
   closeWebSocketServer,
   connectToTwelveData,
+  disconnectFromTwelveData,
   syncMissingData
 } from './modules/realtime';
-import { initScheduler } from './modules/scheduler';
+import { initScheduler, stopScheduler } from './modules/scheduler';
+import { candleFlusher, closeCandlePersistence } from './modules/candle/candle.persistence';
 import { logger } from './shared/utils/logger';
 
 const port = config.port;
@@ -24,6 +26,7 @@ httpServer.listen(port, async () => {
 
   try {
     // 웹소켓 연결 (실시간 데이터 수신 시작)
+    candleFlusher.start();
     connectToTwelveData();
 
     // 데이터 동기화 (백그라운드 실행)
@@ -40,21 +43,33 @@ httpServer.listen(port, async () => {
 });
 
 // Graceful Shutdown 처리
+let isShuttingDown = false;
+
 const shutdown = async (signal: string) => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
   logger.info(`Received ${signal}. Shutting down gracefully...`);
 
-  await closeWebSocketServer();
-
-  httpServer.close(() => {
-    logger.info('HTTP server closed.');
-    process.exit(0);
-  });
-
-  // 강제 종료 (10초 후)
-  setTimeout(() => {
+  const forceExitTimer = setTimeout(() => {
     logger.error('Could not close connections in time, forcefully shutting down');
     process.exit(1);
   }, 10000);
+  forceExitTimer.unref();
+
+  try {
+    disconnectFromTwelveData();
+    await stopScheduler();
+    await closeWebSocketServer();
+    await closeCandlePersistence();
+    await new Promise<void>((resolve, reject) => {
+      httpServer.close((error) => error ? reject(error) : resolve());
+    });
+    logger.info('HTTP server closed.');
+    process.exit(0);
+  } catch (error) {
+    logger.error('Graceful shutdown failed', { error });
+    process.exit(1);
+  }
 };
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
