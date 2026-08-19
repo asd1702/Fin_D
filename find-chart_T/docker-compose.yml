@@ -12,11 +12,18 @@ services:
     environment:
       - PORT=8080
       - NODE_ENV=production
-      # DATABASE_URL and TWELVE_DATA_API_KEY should be in .env
+      - ROCKSDB_PATH=/data/rocksdb/candles
+      - DATABASE_URL=${DOCKER_DATABASE_URL:-${DATABASE_URL}}
+      # TWELVE_DATA_API_KEY should be in .env
     restart: unless-stopped
+    volumes:
+      - candle-rocksdb:/data/rocksdb
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+
+volumes:
+  candle-rocksdb:
